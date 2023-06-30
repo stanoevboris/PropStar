@@ -9,6 +9,7 @@ from sklearn.dummy import DummyClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer, HashingVectorizer
 from sklearn import preprocessing
 import re
+from scipy import sparse
 
 from neural import *  ## DRMs
 from learning import *  ## starspace
@@ -270,12 +271,13 @@ def relational_words_to_matrix(fw,
         mtx = vectorizer.fit_transform(docs)
 
     elif vectorization_type == 'woe':
-        resulting_documents = list(fw.items())
+        target_classes = [int(x) for x in target_classes]
+        resulting_documents = list(fw.values())
         encoded_matrix, word_corpus = one_hot_encode_word_lists(resulting_documents)
         X = pd.DataFrame(encoded_matrix, columns=word_corpus)
         vectorizer = woe.WOEEncoder(cols=word_corpus)
         woe_encoded_train = vectorizer.fit_transform(X=X, y=target_classes)
-        mtx = woe_encoded_train.to_dict(orient='index')  # TODO: cast to proper data structure
+        mtx = sparse.csr_matrix(woe_encoded_train)  # TODO: cast to proper data structure
 
     return mtx, vectorizer
 
@@ -297,9 +299,9 @@ def relational_words_to_matrix_with_vec(fw,
         resulting_documents = list(fw.items())
         encoded_matrix, word_corpus = one_hot_encode_word_lists(resulting_documents)
         X = pd.DataFrame(encoded_matrix, columns=word_corpus)
-        vectorizer = woe.WOEEncoder(cols=word_corpus)
-        woe_encoded_train = vectorizer.fit_transform(X=X, y=target_classes)
-        mtx = woe_encoded_train.to_dict(orient='index')  # TODO: cast to proper data structure
+        # vectorizer = woe.WOEEncoder(cols=word_corpus)
+        woe_encoded_train = vectorizer.transform(X=X)
+        mtx = sparse.csr_matrix(woe_encoded_train)  # TODO: cast to proper data structure
     else:
         for k, v in fw.items():
             docs.append(" ".join(v))
@@ -428,8 +430,7 @@ def generate_relational_words(tables,
                     elif first_table_name != target_table and current_depth == 2:
                         key_to_compare = None
                         for edge in fk_graph.edges():
-                            if edge[0][0] == target_table and edge[1][
-                                0] == first_table_name:
+                            if edge[0][0] == target_table and edge[1][0] == first_table_name:
                                 key_to_compare = first_table[first_table[
                                                                  edge[1][1]] == row[edge[0]
                                 [1]]][first_table_key]
@@ -438,9 +439,8 @@ def generate_relational_words(tables,
                         else:
                             continue
 
-                    ## The second case
-                    trow = second_table[second_table[next_table_key] ==
-                                        key_to_compare]
+                    # The second case
+                    trow = second_table[second_table[next_table_key] == key_to_compare]
                     for x in trow.columns:
                         if not x in all_foreign_keys and x != target_attribute:
                             for value in trow[x]:
@@ -451,20 +451,21 @@ def generate_relational_words(tables,
                                 num_witems += 1
                                 feature_vectors[index].append(witem)
 
-    ## Summary of the output
+    # Summary of the output
     logging.info("Stored {} witems..".format(num_witems))
     logging.info("Learning representation from {} unique witems.".format(
         len(total_witems)))
 
-    ## Vectorizer is an arbitrary vectorizer, some of the well known ones are implemented here, it's simple to add your own!
+    # Vectorizer is an arbitrary vectorizer, some of the well known ones are implemented here, it's simple to add your own!
     if vectorizer:
         matrix = relational_words_to_matrix_with_vec(
-            feature_vectors, vectorizer, vectorization_type=vectorization_type)
+            feature_vectors, target_classes.array, vectorizer, vectorization_type=vectorization_type)
         return matrix, target_classes
     else:
         matrix, vectorizer = relational_words_to_matrix(
             feature_vectors,
             relation_order,
+            target_classes.array,
             vectorization_type,
             max_features=num_features)
         logging.info("Stored sparse representation of the witemsets.")
@@ -509,7 +510,7 @@ if __name__ == "__main__":
         "Negative search limit (see starspace docs for extensive description)")
     parser.add_argument(
         "--representation_type",
-        default="tfidf",
+        default="woe",
         type=str,
         help=
         "Type of representation and weighting. tfidf or binary, also supports scikit's implementations (ordered patterns)"

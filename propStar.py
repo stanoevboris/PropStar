@@ -230,6 +230,7 @@ def get_table_keys(quadruplet):
 
 def relational_words_to_matrix(fw,
                                relation_order,
+                               target_classes,
                                vectorization_type="tfidf",
                                max_features=10000):
     """
@@ -269,16 +270,18 @@ def relational_words_to_matrix(fw,
         mtx = vectorizer.fit_transform(docs)
 
     elif vectorization_type == 'woe':
-        encoded_matrix, word_corpus = self.one_hot_encode_word_lists(self.resulting_documents)
+        resulting_documents = list(fw.items())
+        encoded_matrix, word_corpus = one_hot_encode_word_lists(resulting_documents)
         X = pd.DataFrame(encoded_matrix, columns=word_corpus)
-        woe_encoder = woe.WOEEncoder(cols=word_corpus)
-        woe_encoded_train = woe_encoder.fit_transform(X=X, y=self.target_table.Y)
-        self.tf_idfs = woe_encoded_train.to_dict(orient='index')
+        vectorizer = woe.WOEEncoder(cols=word_corpus)
+        woe_encoded_train = vectorizer.fit_transform(X=X, y=target_classes)
+        mtx = woe_encoded_train.to_dict(orient='index')  # TODO: cast to proper data structure
 
     return mtx, vectorizer
 
 
 def relational_words_to_matrix_with_vec(fw,
+                                        target_classes,
                                         vectorizer,
                                         vectorization_type="tfidf"):
     """
@@ -290,7 +293,13 @@ def relational_words_to_matrix_with_vec(fw,
         for k, v in fw.items():
             docs.append(set(v))
         mtx = vectorizer.transform(docs)
-
+    elif vectorization_type == 'woe':
+        resulting_documents = list(fw.items())
+        encoded_matrix, word_corpus = one_hot_encode_word_lists(resulting_documents)
+        X = pd.DataFrame(encoded_matrix, columns=word_corpus)
+        vectorizer = woe.WOEEncoder(cols=word_corpus)
+        woe_encoded_train = vectorizer.fit_transform(X=X, y=target_classes)
+        mtx = woe_encoded_train.to_dict(orient='index')  # TODO: cast to proper data structure
     else:
         for k, v in fw.items():
             docs.append(" ".join(v))

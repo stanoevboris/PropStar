@@ -50,7 +50,7 @@ class starspaceLearner:
     '''
     def __init__(self,
                  vb=False,
-                 binary="./starspace",
+                 binary="./bin/starspace",
                  tmp_folder="tmp",
                  epoch=5,
                  dim=100,
@@ -104,14 +104,14 @@ class starspaceLearner:
 
         if train:
             train_file = "./tmp/train_data.txt"
-            to_execute = "./starspace train {} -verbose 0 -trainFile ".format(
+            to_execute = "./bin/starspace train {} -verbose 0 -trainFile ".format(
                 self.parameter_string) + train_file + " -model " + output_model
             os.system(to_execute)
         else:
 
             test_file = "./tmp/test_data.txt"
             to_execute = """
-            ./query_predict {modelfile} 1 < {testfile}
+            ./bin/query_predict {modelfile} 1 < {testfile}
             """.format(modelfile="tmp/storedModel",
                        testfile="tmp/test_data.txt")
             output = subprocess.check_output(to_execute, shell=True)

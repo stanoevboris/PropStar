@@ -6,3 +6,4 @@ torch==2.0.1
 torchvision==0.15.2
 numpy>=1.16.4
 scipy>=1.4.1
+category-encoders==2.6.1

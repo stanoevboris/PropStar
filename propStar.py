@@ -13,8 +13,11 @@ import re
 from neural import *  ## DRMs
 from learning import *  ## starspace
 from vectorizers import *  ## ConjunctVectorizer
+from sklearn.preprocessing import MultiLabelBinarizer
+from category_encoders import woe
 
 import logging
+
 logging.basicConfig(format='%(asctime)s - %(message)s',
                     datefmt='%d-%b-%y %H:%M:%S')
 logging.getLogger().setLevel(logging.INFO)
@@ -48,6 +51,13 @@ def interpolate_nans(X):
         mask_j = np.isnan(X[:, j])
         X[mask_j, j] = np.mean(np.flatnonzero(X))
     return X
+
+
+def one_hot_encode_word_lists(word_lists):
+    mlb = MultiLabelBinarizer()
+    encoded = mlb.fit_transform(word_lists)
+    labels = mlb.classes_
+    return encoded, labels
 
 
 def discretize_candidates(df, types, ratio_threshold=0.20, n_bins=20):
@@ -258,6 +268,13 @@ def relational_words_to_matrix(fw,
 
         mtx = vectorizer.fit_transform(docs)
 
+    elif vectorization_type == 'woe':
+        encoded_matrix, word_corpus = self.one_hot_encode_word_lists(self.resulting_documents)
+        X = pd.DataFrame(encoded_matrix, columns=word_corpus)
+        woe_encoder = woe.WOEEncoder(cols=word_corpus)
+        woe_encoded_train = woe_encoder.fit_transform(X=X, y=self.target_table.Y)
+        self.tf_idfs = woe_encoded_train.to_dict(orient='index')
+
     return mtx, vectorizer
 
 
@@ -403,10 +420,10 @@ def generate_relational_words(tables,
                         key_to_compare = None
                         for edge in fk_graph.edges():
                             if edge[0][0] == target_table and edge[1][
-                                    0] == first_table_name:
+                                0] == first_table_name:
                                 key_to_compare = first_table[first_table[
-                                    edge[1][1]] == row[edge[0]
-                                                       [1]]][first_table_key]
+                                                                 edge[1][1]] == row[edge[0]
+                                [1]]][first_table_key]
                         if not key_to_compare is None:
                             pass
                         else:

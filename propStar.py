@@ -56,15 +56,14 @@ def interpolate_nans(X):
 
 def one_hot_encode_train_data(encoder, word_lists):
     encoded = encoder.fit_transform(word_lists)
-    labels = resulting_documents.append(" ".join(v))
-
-    return encoded, labels
+    labels = sorted(encoder.vocabulary_.keys())
+    return encoded.toarray(), labels
 
 
 def one_hot_encode_test_data(encoder, word_lists):
     encoded = encoder.transform(word_lists)
-    labels = encoder.get_feature_names_out()
-    return encoded, labels
+    labels = sorted(encoder.vocabulary_.keys())
+    return encoded.toarray(), labels
 
 
 def discretize_candidates(df, types, ratio_threshold=0.20, n_bins=20):
@@ -309,7 +308,9 @@ def relational_words_to_matrix_with_vec(fw,
             docs.append(set(v))
         mtx = vectorizer.transform(docs)
     elif vectorization_type == 'woe':
-        resulting_documents = list(fw.values())
+        resulting_documents = []
+        for v in fw.values():
+            resulting_documents.append(" ".join(v))
         encoded_matrix, word_corpus = one_hot_encode_test_data(encoder, resulting_documents)
         X = pd.DataFrame(encoded_matrix, columns=word_corpus)
         woe_encoded_train = vectorizer.transform(X=X)
@@ -581,8 +582,10 @@ if __name__ == "__main__":
                             num_fold=10,
                             target_attribute=target_attribute)
                         for train_index, test_index in split_gen:
-                            encoder = CountVectorizer(max_features=args.num_features)
-                            ## higher relation orders result in high memory load, thread with caution!
+                            encoder = CountVectorizer(lowercase=False,
+                                                      binary=True,
+                                                      token_pattern='[a-zA-Z0-9$&+,:;=?@#|<>.^*()%!-_]+',
+                                                      ngram_range=(1, 2))                            ## higher relation orders result in high memory load, thread with caution!
                             train_features, train_classes, vectorizer = generate_relational_words(
                                 tables,
                                 fkg,
@@ -661,7 +664,10 @@ if __name__ == "__main__":
                             num_fold=10,
                             target_attribute=target_attribute)
                         for train_index, test_index in split_gen:
-                            encoder = MultiLabelBinarizer()
+                            encoder = CountVectorizer(lowercase=False,
+                                                      binary=True,
+                                                      token_pattern='[a-zA-Z0-9$&+,:;=?@#|<>.^*()%!-_]+',
+                                                      ngram_range=(1, 2))
                             train_features, train_classes, vectorizer = generate_relational_words(
                                 tables,
                                 fkg,

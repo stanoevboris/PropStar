@@ -1,5 +1,5 @@
 ## propStar example use, skrlj 2020 use at own discretion
-
+import numpy as np
 import pandas as pd
 import queue
 import networkx as nx
@@ -14,7 +14,7 @@ from scipy import sparse
 from neural import *  ## DRMs
 from learning import *  ## starspace
 from vectorizers import *  ## ConjunctVectorizer
-from sklearn.preprocessing import MultiLabelBinarizer
+from sklearn.feature_extraction.text import CountVectorizer
 from category_encoders import woe
 
 import logging
@@ -54,10 +54,16 @@ def interpolate_nans(X):
     return X
 
 
-def one_hot_encode_word_lists(word_lists):
-    mlb = MultiLabelBinarizer()
-    encoded = mlb.fit_transform(word_lists)
-    labels = mlb.classes_
+def one_hot_encode_train_data(encoder, word_lists):
+    encoded = encoder.fit_transform(word_lists)
+    labels = resulting_documents.append(" ".join(v))
+
+    return encoded, labels
+
+
+def one_hot_encode_test_data(encoder, word_lists):
+    encoded = encoder.transform(word_lists)
+    labels = encoder.get_feature_names_out()
     return encoded, labels
 
 
@@ -232,6 +238,7 @@ def get_table_keys(quadruplet):
 def relational_words_to_matrix(fw,
                                relation_order,
                                target_classes,
+                               encoder,
                                vectorization_type="tfidf",
                                max_features=10000):
     """
@@ -254,7 +261,9 @@ def relational_words_to_matrix(fw,
             docs.append(set(v))
         mtx = vectorizer.fit_transform(docs)
 
-    elif vectorization_type == "sklearn_tfidf" or vectorization_type == "sklearn_binary" or vectorization_type == "sklearn_hash":
+    elif vectorization_type == "sklearn_tfidf" \
+            or vectorization_type == "sklearn_binary" \
+            or vectorization_type == "sklearn_hash":
 
         if vectorization_type == "sklearn_tfidf":
             vectorizer = TfidfVectorizer(max_features=max_features,
@@ -271,13 +280,16 @@ def relational_words_to_matrix(fw,
         mtx = vectorizer.fit_transform(docs)
 
     elif vectorization_type == 'woe':
-        target_classes = [int(x) for x in target_classes]
-        resulting_documents = list(fw.values())
-        encoded_matrix, word_corpus = one_hot_encode_word_lists(resulting_documents)
+        label_encoder = preprocessing.LabelEncoder()
+        target_classes = label_encoder.fit_transform(target_classes)
+        resulting_documents = []
+        for v in fw.values():
+            resulting_documents.append(" ".join(v))
+        encoded_matrix, word_corpus = one_hot_encode_train_data(encoder, resulting_documents)
         X = pd.DataFrame(encoded_matrix, columns=word_corpus)
         vectorizer = woe.WOEEncoder(cols=word_corpus)
         woe_encoded_train = vectorizer.fit_transform(X=X, y=target_classes)
-        mtx = sparse.csr_matrix(woe_encoded_train)  # TODO: cast to proper data structure
+        mtx = sparse.csr_matrix(woe_encoded_train)
 
     return mtx, vectorizer
 
@@ -285,6 +297,7 @@ def relational_words_to_matrix(fw,
 def relational_words_to_matrix_with_vec(fw,
                                         target_classes,
                                         vectorizer,
+                                        encoder,
                                         vectorization_type="tfidf"):
     """
     Just do the transformation. This is for proper cross-validation (on the test set)
@@ -296,12 +309,11 @@ def relational_words_to_matrix_with_vec(fw,
             docs.append(set(v))
         mtx = vectorizer.transform(docs)
     elif vectorization_type == 'woe':
-        resulting_documents = list(fw.items())
-        encoded_matrix, word_corpus = one_hot_encode_word_lists(resulting_documents)
+        resulting_documents = list(fw.values())
+        encoded_matrix, word_corpus = one_hot_encode_test_data(encoder, resulting_documents)
         X = pd.DataFrame(encoded_matrix, columns=word_corpus)
-        # vectorizer = woe.WOEEncoder(cols=word_corpus)
         woe_encoded_train = vectorizer.transform(X=X)
-        mtx = sparse.csr_matrix(woe_encoded_train)  # TODO: cast to proper data structure
+        mtx = sparse.csr_matrix(woe_encoded_train)
     else:
         for k, v in fw.items():
             docs.append(" ".join(v))
@@ -316,6 +328,7 @@ def generate_relational_words(tables,
                               target_attribute=None,
                               relation_order=(2, 4),
                               indices=None,
+                              encoder=None,
                               vectorizer=None,
                               vectorization_type="tfidf",
                               num_features=10000):
@@ -459,13 +472,14 @@ def generate_relational_words(tables,
     # Vectorizer is an arbitrary vectorizer, some of the well known ones are implemented here, it's simple to add your own!
     if vectorizer:
         matrix = relational_words_to_matrix_with_vec(
-            feature_vectors, target_classes.array, vectorizer, vectorization_type=vectorization_type)
+            feature_vectors, target_classes.array, vectorizer, encoder, vectorization_type=vectorization_type)
         return matrix, target_classes
     else:
         matrix, vectorizer = relational_words_to_matrix(
             feature_vectors,
             relation_order,
             target_classes.array,
+            encoder,
             vectorization_type,
             max_features=num_features)
         logging.info("Stored sparse representation of the witemsets.")
@@ -567,6 +581,7 @@ if __name__ == "__main__":
                             num_fold=10,
                             target_attribute=target_attribute)
                         for train_index, test_index in split_gen:
+                            encoder = CountVectorizer(max_features=args.num_features)
                             ## higher relation orders result in high memory load, thread with caution!
                             train_features, train_classes, vectorizer = generate_relational_words(
                                 tables,
@@ -575,6 +590,7 @@ if __name__ == "__main__":
                                 target_attribute,
                                 relation_order=(1, 2),
                                 indices=train_index,
+                                encoder=encoder,
                                 vectorization_type=pars[4],
                                 num_features=args.num_features)
                             test_features, test_classes = generate_relational_words(
@@ -585,6 +601,7 @@ if __name__ == "__main__":
                                 relation_order=(1, 2),
                                 vectorizer=vectorizer,
                                 indices=test_index,
+                                encoder=encoder,
                                 vectorization_type=pars[4],
                                 num_features=args.num_features)
 
@@ -644,6 +661,7 @@ if __name__ == "__main__":
                             num_fold=10,
                             target_attribute=target_attribute)
                         for train_index, test_index in split_gen:
+                            encoder = MultiLabelBinarizer()
                             train_features, train_classes, vectorizer = generate_relational_words(
                                 tables,
                                 fkg,
@@ -651,6 +669,7 @@ if __name__ == "__main__":
                                 target_attribute,
                                 relation_order=(1, 2),
                                 indices=train_index,
+                                encoder=encoder,
                                 vectorization_type=pars[5],
                                 num_features=pars[6])
 
@@ -662,6 +681,7 @@ if __name__ == "__main__":
                                 relation_order=(1, 2),
                                 vectorizer=vectorizer,
                                 indices=test_index,
+                                encoder=encoder,
                                 vectorization_type=pars[5],
                                 num_features=pars[6])
                             le = preprocessing.LabelEncoder()
@@ -683,6 +703,8 @@ if __name__ == "__main__":
                                 perf_roc.append(0)
                                 perf.append(0)
                                 continue
+                            train_classes_uq, train_counts = np.unique(train_classes, return_counts=True)
+                            test_classes_uq, test_counts = np.unique(test_classes, return_counts=True)
 
                             try:
                                 acc1 = accuracy_score(test_classes, preds)

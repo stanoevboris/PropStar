@@ -12,6 +12,7 @@ from scipy import sparse
 
 from neural import *  ## DRMs
 from learning import *  ## starspace
+from utils import clear, cleanp, OrderedDictList
 from vectorizers import *  ## ConjunctVectorizer
 from sklearn.feature_extraction.text import CountVectorizer
 from category_encoders import woe

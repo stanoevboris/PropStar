@@ -47,6 +47,12 @@ class OrderedDictList(OrderedDict):
         return self[k]
 
 
+class OrderedDict(OrderedDict):
+    def __missing__(self, k):
+        self[k] = {}
+        return self[k]
+
+
 def cleanp(stx):
     """
     Simple string cleaner

@@ -12,7 +12,7 @@ from scipy import sparse
 
 from neural import *  ## DRMs
 from learning import *  ## starspace
-from utils import clear, cleanp, OrderedDictList
+from utils import clear, cleanp, OrderedDictList, OrderedDict
 from vectorizers import *  ## ConjunctVectorizer
 from sklearn.feature_extraction.text import CountVectorizer
 from category_encoders import woe
@@ -235,17 +235,17 @@ def generate_relational_words(tables,
                 total_witems.add(witem)
 
     logging.info("Traversing other tables ..")
-    for core_fk in core_foreign_keys:  ## this is normaly a single key.
+    for core_fk in core_foreign_keys:  # this is normaly a single key.
         bfs_traversal = dict(
             nx.bfs_successors(fk_graph, (target_table, core_fk)))
 
-        ## Traverse the row space
+        # Traverse the row space
         for index, row in tqdm.tqdm(core_table.iterrows(),
                                     total=core_table.shape[0]):
 
             current_depth = 0
             to_traverse = queue.Queue()
-            to_traverse.put(target_table)  ## seed table
+            to_traverse.put(target_table)  # seed table
             max_depth = 2
             tables_considered = 0
             parsed_tables = set()
@@ -272,7 +272,7 @@ def generate_relational_words(tables,
                     if not first_table_name in tables or not next_table_name in tables:
                         continue
 
-                    ## link and generate witems
+                    # link and generate witems
                     first_table = tables[first_table_name]
                     second_table = tables[next_table_name]
                     if first_table_name == target_table:
@@ -282,8 +282,7 @@ def generate_relational_words(tables,
                         for edge in fk_graph.edges():
                             if edge[0][0] == target_table and edge[1][0] == first_table_name:
                                 key_to_compare = first_table[first_table[
-                                                                 edge[1][1]] == row[edge[0]
-                                [1]]][first_table_key]
+                                                                 edge[1][1]] == row[edge[0][1]]][first_table_key]
                         if not key_to_compare is None:
                             pass
                         else:
@@ -310,7 +309,7 @@ def generate_relational_words(tables,
     if vectorizer:
         matrix = relational_words_to_matrix_with_vec(
             feature_vectors, target_classes.array, vectorizer, encoder, vectorization_type=vectorization_type)
-        return matrix, target_classes
+        return matrix, target_classes.array
     else:
         matrix, vectorizer = relational_words_to_matrix(
             feature_vectors,
@@ -320,7 +319,7 @@ def generate_relational_words(tables,
             vectorization_type,
             max_features=num_features)
         logging.info("Stored sparse representation of the witemsets.")
-        return matrix, target_classes, vectorizer
+        return matrix, target_classes.array, vectorizer
 
 
 def relational_words_to_matrix_with_vec(fw,
@@ -398,12 +397,6 @@ def relational_words_to_matrix(fw,
         mtx = vectorizer.fit_transform(docs)
 
     elif vectorization_type == 'woe':
-        label_encoder = preprocessing.LabelEncoder()
-        target_classes = label_encoder.fit_transform(target_classes)
-        resulting_documents = []
-        for v in fw.values():
-            resulting_documents.append(" ".join(v))
-        encoded_matrix, word_corpus = one_hot_encode_train_data(encoder, resulting_documents)
         X = pd.DataFrame(encoded_matrix, columns=word_corpus)
         vectorizer = woe.WOEEncoder(cols=word_corpus)
         woe_encoded_train = vectorizer.fit_transform(X=X, y=target_classes)
@@ -412,13 +405,179 @@ def relational_words_to_matrix(fw,
     return mtx, vectorizer
 
 
-def one_hot_encode_train_data(encoder, word_lists):
-    encoded = encoder.fit_transform(word_lists)
-    labels = sorted(encoder.vocabulary_.keys())
-    return encoded.toarray(), labels
+def generate_custom_relational_words(tables,
+                                     fkg,
+                                     target_table=None,
+                                     target_attribute=None,
+                                     relation_order=(2, 4),
+                                     indices=None,
+                                     encoder=None,
+                                     vectorizer=None,
+                                     vectorization_type="tfidf",
+                                     num_features=10000):
+    """
+    Key method for generation of relational words and documents.
+    It traverses individual tables in path, and consequantially appends the witems to a witem set. This method is a rewritten, non exponential (in space) version of the original Wordification algorithm (Perovsek et al, 2014).
+    input: a collection of tables and a foreign key graph
+    output: a representation in form of a sparse matrix.
+    """
+
+    fk_graph = nx.Graph(
+    )  ## a simple undirected graph as the underlying fk structure
+    core_foreign_keys = set()
+    all_foreign_keys = set()
+
+    for foreign_key in fkg:
+
+        ## foreing key mapping
+        t1, k1, t2, k2 = foreign_key
+
+        if t1 == target_table:
+            core_foreign_keys.add(k1)
+
+        elif t2 == target_table:
+            core_foreign_keys.add(k2)
+
+        all_foreign_keys.add(k1)
+        all_foreign_keys.add(k2)
+
+        ## add link, note that this is in fact a typed graph now
+        fk_graph.add_edge((t1, k1), (t2, k2))
+
+    ## this is more efficient than just orderedDict object
+    feature_vectors = OrderedDict()
+    if not indices is None:
+        core_table = tables[target_table].iloc[indices, :]
+    else:
+        core_table = tables[target_table]
+    all_table_keys = get_table_keys(fkg)
+    core_foreign = None
+    target_classes = core_table[target_attribute]
+    target_classes_dict = target_classes.to_dict()
+    # target_classes_dict = dict(zip(core_table.index, core_table[target_attribute]))
+
+    total_witems = set()
+    num_witems = 0
+    columns_to_explode = {}
+
+    ## The main propositionalization routine
+    logging.info("Propositionalization of core table ..")
+    for index, row in tqdm.tqdm(core_table.iterrows(),
+                                total=core_table.shape[0]):
+        for i in range(len(row)):
+            column_name = row.index[i]
+            if column_name != target_attribute and not column_name in core_foreign_keys:
+                new_column_name = f"{target_table}_{column_name}"
+                witem = "-".join([target_table, column_name, row[i]])
+                # feature_vectors[index].setdefault(new_column_name, [])
+                feature_vectors[index][new_column_name] = row[i]
+                num_witems += 1
+                total_witems.add(witem)
+
+    logging.info("Traversing other tables ..")
+    for core_fk in core_foreign_keys:  # this is normaly a single key.
+        bfs_traversal = dict(
+            nx.bfs_successors(fk_graph, (target_table, core_fk)))
+
+        # Traverse the row space
+        for index, row in tqdm.tqdm(core_table.iterrows(),
+                                    total=core_table.shape[0]):
+
+            current_depth = 0
+            to_traverse = queue.Queue()
+            to_traverse.put(target_table)  # seed table
+            max_depth = 2
+            tables_considered = 0
+            parsed_tables = set()
+
+            ## Perform simple search
+            while current_depth < max_depth:
+                current_depth += 1
+                origin = to_traverse.get()
+                if current_depth == 1:
+                    successor_tables = bfs_traversal[(origin, core_fk)]
+                else:
+                    if origin in bfs_traversal:
+                        successor_tables = bfs_traversal[origin]
+                    else:
+                        continue
+                for succ in successor_tables:
+                    to_traverse.put(succ)
+                for table in successor_tables:
+                    if (table) in parsed_tables:
+                        continue
+                    parsed_tables.add(table)
+                    first_table_name, first_table_key = origin, core_fk
+                    next_table_name, next_table_key = table
+                    if not first_table_name in tables or not next_table_name in tables:
+                        continue
+
+                    # link and generate witems
+                    first_table = tables[first_table_name]
+                    second_table = tables[next_table_name]
+                    if first_table_name == target_table:
+                        key_to_compare = row[first_table_key]
+                    elif first_table_name != target_table and current_depth == 2:
+                        key_to_compare = None
+                        for edge in fk_graph.edges():
+                            if edge[0][0] == target_table and edge[1][0] == first_table_name:
+                                key_to_compare = first_table[first_table[
+                                                                 edge[1][1]] == row[edge[0][1]]][first_table_key]
+                        if not key_to_compare is None:
+                            pass
+                        else:
+                            continue
+
+                    # The second case
+                    trow = second_table[second_table[next_table_key] == key_to_compare]
+                    columns_to_explode.setdefault(next_table_name, set())
+                    for x in trow.columns:
+                        if not x in all_foreign_keys and x != target_attribute:
+                            new_column_name = f"{next_table_name}_{x}"
+                            feature_vectors[index].setdefault(new_column_name, [])
+                            columns_to_explode[next_table_name].add(new_column_name)
+                            for value in trow[x]:
+                                witem = "-".join(
+                                    str(x)
+                                    for x in [next_table_name, x, value])
+                                total_witems.add(witem)
+                                num_witems += 1
+                                feature_vectors[index][new_column_name].append(value)
+
+    # Summary of the output
+    logging.info("Stored {} witems..".format(num_witems))
+    logging.info("Learning representation from {} unique witems.".format(
+        len(total_witems)))
+
+    df = pd.DataFrame(feature_vectors).T
+    features_data = df.copy()
+    for key in columns_to_explode:
+        features_data = features_data.explode(list(columns_to_explode[key]))
+    print(len(features_data))
+    target_classes_array = [target_classes_dict[index] for index in features_data.index]
+    if vectorizer:
+        matrix = calculate_woe_test_data(features_data=features_data,
+                                         vectorizer=vectorizer)
+        logging.info("Stored sparse representation of the witemsets.")
+
+        return matrix, target_classes_dict
+    else:
+        matrix, vectorizer = calculate_woe_train_data(features_data=features_data, target_classes=target_classes_array)
+        logging.info("Stored sparse representation of the witemsets.")
+        return matrix, target_classes_dict, vectorizer
 
 
-def one_hot_encode_test_data(encoder, word_lists):
-    encoded = encoder.transform(word_lists)
-    labels = sorted(encoder.vocabulary_.keys())
-    return encoded.toarray(), labels
+def calculate_woe_train_data(features_data, target_classes):
+    label_encoder = preprocessing.LabelEncoder()
+    target_classes = label_encoder.fit_transform(target_classes)
+    columns = features_data.columns.values
+    vectorizer = woe.WOEEncoder(cols=columns)
+    woe_encoded = vectorizer.fit_transform(X=features_data, y=target_classes)
+    # mtx = sparse.csr_matrix(woe_encoded_train)
+    return woe_encoded, vectorizer
+
+
+def calculate_woe_test_data(features_data, vectorizer):
+    woe_encoded = vectorizer.transform(X=features_data)
+    # mtx = sparse.csr_matrix(woe_encoded_train)
+    return woe_encoded

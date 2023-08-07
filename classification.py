@@ -40,7 +40,7 @@ def encode_classes(train_classes, test_classes):
     return train_classes, test_classes, encoder
 
 
-def prop_drm_classification(args, train_features, train_classes, test_features, test_classes):
+def prop_drm_tfidf_classification(args, train_features, train_classes, test_features, test_classes):
     train_classes, test_classes, _ = encode_classes(train_classes, test_classes)
 
     model = E2EDNN(num_epochs=args.epochs,
@@ -66,7 +66,7 @@ def prop_drm_classification(args, train_features, train_classes, test_features, 
     return acc, roc
 
 
-def prop_star_classification(args, train_features, train_classes, test_features, test_classes):
+def prop_star_tfidf_classification(args, train_features, train_classes, test_features, test_classes):
     train_classes, test_classes, _ = encode_classes(train_classes, test_classes)
 
     model = starspaceLearner(epoch=args.epochs,
@@ -110,8 +110,41 @@ def prop_star_classification(args, train_features, train_classes, test_features,
 
 
 def prop_drm_woe_classification(args, train_features, train_classes, test_features, test_classes):
-    print('test')
-    pass
+    train_x = sparse.csr_matrix(train_features)
+    train_y = [train_classes[index] for index in train_features.index]
+    test_x = sparse.csr_matrix(test_features)
+    test_y = [test_classes[index] for index in test_features.index]
+
+    train_y, test_y, encoder = encode_classes(train_y, test_y)
+
+    unique_classes = set(test_y)
+    logging.info(f"Unique classes:{unique_classes}")
+
+    test_classes_encoded = encoder.transform(list(test_classes.values()))
+    model = E2EDNN(num_epochs=args.epochs,
+                   learning_rate=args.learning_rate,
+                   hidden_layer_size=args.hidden_size,
+                   dropout=args.dropout)
+
+    # standard fit predict
+    model.fit(train_x, train_y)
+    predictions = model.predict(test_x)
+    predictions_scores = model.predict(test_x,
+                                       return_proba=True)
+
+    batch_preds_classes, batch_preds_scores = examine_batch_predictions(test_features.index,
+                                                                        unique_classes, predictions, predictions_scores)
+
+    acc = accuracy_score(batch_preds_classes, test_classes_encoded)
+    logging.info(acc)
+
+    if len(unique_classes) == 2:
+        roc = roc_auc_score(test_classes_encoded, batch_preds_scores)
+        logging.info(roc)
+    else:
+        roc = 0
+
+    return acc, roc
 
 
 def prop_star_woe_classification(args, train_features, train_classes, test_features, test_classes):
@@ -137,14 +170,16 @@ def prop_star_woe_classification(args, train_features, train_classes, test_featu
         predictions = model.predict(test_x,
                                     clean_tmp=False)
 
-        preds_scores = model.predict(
+        predictions_scores = model.predict(
             test_x,
             clean_tmp=True,
             return_int_predictions=False,
             return_scores=True)  # use scores for auc.
 
         batch_preds_classes, batch_preds_scores = examine_batch_predictions(test_features.index,
-                                                                            unique_classes, predictions, preds_scores)
+                                                                            unique_classes,
+                                                                            predictions,
+                                                                            predictions_scores)
         if len(batch_preds_classes) == 0:
             roc = 0
             acc = 0
@@ -164,3 +199,37 @@ def prop_star_woe_classification(args, train_features, train_classes, test_featu
         return
 
     return acc, roc
+
+
+learners_dict = {"svm_learner": svm_learner,
+                 "extra_tree_learner": extra_tree_learner,
+                 "random_forest_learner": random_forest_learner,
+                 "ada_boost_learner": ada_boost_learner,
+                 "gradient_boost_learner": gradient_boost_learner}
+
+
+def traditional_learner_tfidf_classification(args, train_features, train_classes, test_features, test_classes):
+    train_classes, test_classes, _ = encode_classes(train_classes, test_classes)
+
+    learner_func = learners_dict[args.learner]
+    model = learner_func(args, train_features, train_classes)
+
+    # standard fit predict
+    # model.fit(train_features, train_classes)
+    predictions = model.predict(test_features)
+    acc = accuracy_score(predictions, test_classes)
+    logging.info(acc)
+
+    if len(np.unique(test_classes)) == 2:
+        prediction_scores = model.predict_proba(test_features)
+        roc = roc_auc_score(test_classes, prediction_scores[:, 1])
+        logging.info(roc)
+
+    else:
+        roc = 0
+
+    return acc, roc
+
+
+def traditional_learner_woe_classification(args, train_features, train_classes, test_features, test_classes):
+    pass

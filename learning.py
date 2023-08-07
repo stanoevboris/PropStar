@@ -8,12 +8,15 @@ import subprocess
 import numpy as np
 import os
 from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import ExtraTreesClassifier, AdaBoostClassifier, GradientBoostingClassifier, \
+    RandomForestClassifier
 from sklearn import svm
 from sklearn.metrics import accuracy_score, f1_score
 
+random_state = 0
+
 
 def preprocess_and_split(X, num_fold=10, target_attribute=None):
-
     skf = StratifiedKFold(n_splits=num_fold)
     Y = X[target_attribute]
     if len(np.unique(Y)) > 40:
@@ -30,17 +33,51 @@ def preprocess_and_split(X, num_fold=10, target_attribute=None):
         yield train_index, test_index
 
 
-def svm_learner(train_features, train_classes):
-    clf = svm.SVC(kernel='rbf', C=10, gamma="scale")
+def svm_learner(args, train_features, train_classes):
+    if args.gamma != 'scale':
+        args.gamma = float(args.gamma)
+    clf = svm.SVC(kernel=args.kernel, C=args.C, gamma=args.gamma, random_state=random_state, probability=True)
     clf.fit(train_features, train_classes)
     return clf
 
 
 def lr_learner(train_features, train_classes):
-    clf = LogisticRegression(random_state=0,
+    clf = LogisticRegression(random_state=random_state,
                              solver='lbfgs',
                              multi_class='multinomial').fit(
-                                 train_features, train_classes)
+        train_features, train_classes)
+    return clf
+
+
+def extra_tree_learner(args, train_features, train_classes):
+    clf = ExtraTreesClassifier(n_estimators=args.n_estimators,
+                               random_state=random_state)
+    clf.fit(train_features, train_classes)
+
+    return clf
+
+
+def random_forest_learner(args, train_features, train_classes):
+    clf = RandomForestClassifier(n_estimators=args.n_estimators,
+                                 random_state=random_state)
+    clf.fit(train_features, train_classes)
+
+    return clf
+
+
+def ada_boost_learner(args, train_features, train_classes):
+    clf = AdaBoostClassifier(n_estimators=args.n_estimators,
+                             random_state=random_state)
+    clf.fit(train_features, train_classes)
+
+    return clf
+
+
+def gradient_boost_learner(args, train_features, train_classes):
+    clf = GradientBoostingClassifier(n_estimators=args.n_estimators,
+                                     random_state=random_state)
+    clf.fit(train_features, train_classes)
+
     return clf
 
 
@@ -48,6 +85,7 @@ class starspaceLearner:
     '''
     This is a simple wrapper for the starspace learner.
     '''
+
     def __init__(self,
                  vb=False,
                  binary="./bin/starspace",
@@ -145,7 +183,7 @@ class starspaceLearner:
         train_text = self.data_to_text(test_data)
         total_data = []
         for enx, el in enumerate(train_text):
-            total_list = el  #+" "+ train_label_text[enx]
+            total_list = el  # +" "+ train_label_text[enx]
             total_data.append(total_list)
         out_file = "\n".join(total_data)
 
@@ -166,3 +204,5 @@ class starspaceLearner:
             return np.array([int(x) for x in els])
         else:
             return els
+
+# TODO: create class for each classifier

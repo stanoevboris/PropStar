@@ -110,10 +110,17 @@ def prop_star_tfidf_classification(args, train_features, train_classes, test_fea
 
 
 def prop_drm_woe_classification(args, train_features, train_classes, test_features, test_classes):
+    try:
+        train_y = [train_classes[int(index)] for index in train_features.index]
+        test_y = [test_classes[int(index)] for index in test_features.index]
+    except Exception as es:
+        logging.info("Index is not an integer, continuing without cast")
+        print(es)
+        train_y = [train_classes[index] for index in train_features.index]
+        test_y = [test_classes[index] for index in test_features.index]
+
     train_x = sparse.csr_matrix(train_features)
-    train_y = [train_classes[index] for index in train_features.index]
     test_x = sparse.csr_matrix(test_features)
-    test_y = [test_classes[index] for index in test_features.index]
 
     train_y, test_y, encoder = encode_classes(train_y, test_y)
 
@@ -148,10 +155,17 @@ def prop_drm_woe_classification(args, train_features, train_classes, test_featur
 
 
 def prop_star_woe_classification(args, train_features, train_classes, test_features, test_classes):
+    try:
+        train_y = [train_classes[int(index)] for index in train_features.index]
+        test_y = [test_classes[int(index)] for index in test_features.index]
+    except Exception as es:
+        logging.info("Index is not an integer, continuing without cast")
+        print(es)
+        train_y = [train_classes[index] for index in train_features.index]
+        test_y = [test_classes[index] for index in test_features.index]
+
     train_x = sparse.csr_matrix(train_features)
-    train_y = [train_classes[index] for index in train_features.index]
     test_x = sparse.csr_matrix(test_features)
-    test_y = [test_classes[index] for index in test_features.index]
 
     train_y, test_y, encoder = encode_classes(train_y, test_y)
 
@@ -215,7 +229,6 @@ def traditional_learner_tfidf_classification(args, train_features, train_classes
     model = learner_func(args, train_features, train_classes)
 
     # standard fit predict
-    # model.fit(train_features, train_classes)
     predictions = model.predict(test_features)
     acc = accuracy_score(predictions, test_classes)
     logging.info(acc)
@@ -232,4 +245,43 @@ def traditional_learner_tfidf_classification(args, train_features, train_classes
 
 
 def traditional_learner_woe_classification(args, train_features, train_classes, test_features, test_classes):
-    pass
+    try:
+        train_y = [train_classes[int(index)] for index in train_features.index]
+        test_y = [test_classes[int(index)] for index in test_features.index]
+    except Exception as es:
+        logging.info("Index is not an integer, continuing without cast")
+        print(es)
+        train_y = [train_classes[index] for index in train_features.index]
+        test_y = [test_classes[index] for index in test_features.index]
+
+    train_x = sparse.csr_matrix(train_features)
+    test_x = sparse.csr_matrix(test_features)
+
+    train_y, test_y, encoder = encode_classes(train_y, test_y)
+
+    unique_classes = set(test_y)
+    logging.info(f"Unique classes:{unique_classes}")
+
+    test_classes_encoded = encoder.transform(list(test_classes.values()))
+
+    learner_func = learners_dict[args.learner]
+    model = learner_func(args, train_x, train_y)
+
+    predictions = model.predict(test_x)
+    predictions_scores = model.predict_proba(test_x)
+
+    batch_preds_classes, batch_preds_scores = examine_batch_predictions(test_features.index,
+                                                                        unique_classes,
+                                                                        predictions,
+                                                                        predictions_scores[:, 1])
+
+    acc = accuracy_score(batch_preds_classes, test_classes_encoded)
+    logging.info(acc)
+
+    if len(unique_classes) == 2:
+        roc = roc_auc_score(test_classes_encoded, batch_preds_scores)
+        logging.info(roc)
+    else:
+        roc = 0
+
+    return acc, roc

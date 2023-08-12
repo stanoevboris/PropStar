@@ -1,5 +1,6 @@
+import os
 import argparse
-
+import csv
 import numpy as np
 
 import logging
@@ -11,6 +12,7 @@ from sklearn import preprocessing
 from learning import preprocess_and_split
 from propositionalization import table_generator, generate_relational_words, generate_custom_relational_words
 from classification import *
+from utils import save_results
 
 logging.basicConfig(format='%(asctime)s - %(message)s',
                     datefmt='%d-%b-%y %H:%M:%S')
@@ -25,22 +27,31 @@ classifier_func = {
     "starspace": {'sklearn_tfidf': prop_star_tfidf_classification,
                   'woe': prop_star_woe_classification},
     "svm_learner": {
-        'sklearn_tfidf': traditional_learner_tfidf_classification
+        'sklearn_tfidf': traditional_learner_tfidf_classification,
+        'woe': traditional_learner_woe_classification
     },
     "extra_tree_learner": {
-        'sklearn_tfidf': traditional_learner_tfidf_classification
+        'sklearn_tfidf': traditional_learner_tfidf_classification,
+        'woe': traditional_learner_woe_classification
     },
     "random_forest_learner": {
-        'sklearn_tfidf': traditional_learner_tfidf_classification
+        'sklearn_tfidf': traditional_learner_tfidf_classification,
+        'woe': traditional_learner_woe_classification
     },
-    "ada_boost_learner": {'sklearn_tfidf': traditional_learner_tfidf_classification},
-    "gradient_boost_learner": {'sklearn_tfidf': traditional_learner_tfidf_classification}
+    "ada_boost_learner": {
+        'sklearn_tfidf': traditional_learner_tfidf_classification,
+        'woe': traditional_learner_woe_classification
+    },
+    "gradient_boost_learner": {
+        'sklearn_tfidf': traditional_learner_tfidf_classification,
+        'woe': traditional_learner_woe_classification
+    }
 }
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--learner", default="gradient_boost_learner")
+    parser.add_argument("--learner", default="DRM")
     parser.add_argument("--learning_rate",
                         default=0.001,
                         type=float,
@@ -96,7 +107,7 @@ if __name__ == "__main__":
         "Kernel coefficient for kernel with value ‘rbf’, used in SVC")
     parser.add_argument(
         "--representation_type",
-        default="sklearn_tfidf",
+        default="woe",
         type=str,
         help=
         "Type of representation and weighting. tfidf or binary, also supports scikit's implementations (ordered "
@@ -105,18 +116,24 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     grid_dict = {
-        "DRM": [args.epochs, args.learning_rate, args.hidden_size,
-                args.dropout, args.representation_type,
-                args.num_features],
-        "starspace": [args.epochs, args.learning_rate,
-                      args.negative_samples_limit, args.hidden_size,
-                      args.negative_search_limit, args.representation_type,
-                      args.num_features],
-        "svm_learner": [args.epochs, args.representation_type, args.kernel, args.C, args.gamma],
-        "extra_tree_learner": [args.epochs, args.representation_type, args.n_estimators],
-        "random_forest_learner": [args.epochs, args.representation_type, args.n_estimators],
-        "ada_boost_learner": [args.epochs, args.representation_type, args.n_estimators],
-        "gradient_boost_learner": [args.epochs, args.representation_type, args.n_estimators, args.learning_rate]
+        "DRM": {'learner': args.learner, 'epochs': args.epochs, 'learning_rate': args.learning_rate, 'hidden_size': args.hidden_size,
+                'dropout': args.dropout, 'representation_type': args.representation_type,
+                'num_features': args.num_features},
+        "starspace": {'learner': args.learner, 'epochs': args.epochs, 'learning_rate': args.learning_rate,
+                      'negative_samples_limit': args.negative_samples_limit, 'hidden_size': args.hidden_size,
+                      'negative_search_limit': args.negative_search_limit,
+                      'representation_type': args.representation_type,
+                      'num_features': args.num_features},
+        "svm_learner": {'learner': args.learner, 'epochs': args.epochs, 'representation_type': args.representation_type, 'kernel': args.kernel,
+                        'C': args.C, 'gamma': args.gamma},
+        "extra_tree_learner": {'learner': args.learner, 'epochs': args.epochs, 'representation_type': args.representation_type,
+                               'n_estimators': args.n_estimators},
+        "random_forest_learner": {'learner': args.learner, 'epochs': args.epochs, 'representation_type': args.representation_type,
+                                  'n_estimators': args.n_estimators},
+        "ada_boost_learner": {'learner': args.learner, 'epochs': args.epochs, 'representation_type': args.representation_type,
+                              'n_estimators': args.n_estimators},
+        "gradient_boost_learner": {'learner': args.learner, 'epochs': args.epochs, 'representation_type': args.representation_type,
+                                   'n_estimators': args.n_estimators, 'learning_rate': args.learning_rate}
     }
 
     variable_types_file = open(
@@ -151,6 +168,8 @@ if __name__ == "__main__":
                 tables, fkg, primary_keys = table_generator(
                     example_sql, variable_types)
 
+                # tables[target_table][target_attribute].replace('NULL', np.nan, inplace=True)
+                # tables[target_table] = tables[target_table].dropna(axis=0, subset=[target_attribute])
                 perf = []
                 perf_roc = []
                 logging.info("Evaluation of {} - {}".format(
@@ -176,7 +195,8 @@ if __name__ == "__main__":
                         indices=train_index,
                         encoder=encoder,
                         vectorization_type=args.representation_type,
-                        num_features=args.num_features)
+                        num_features=args.num_features,
+                        primary_keys=primary_keys)
                     test_features, test_classes = generate_relational_words_func(
                         tables,
                         fkg,
@@ -187,20 +207,19 @@ if __name__ == "__main__":
                         indices=test_index,
                         encoder=encoder,
                         vectorization_type=args.representation_type,
-                        num_features=args.num_features)
+                        num_features=args.num_features,
+                        primary_keys=primary_keys)
 
                     classify_func = classifier_func[args.learner][args.representation_type]
-                    acc, auc_roc = classify_func(args=args,
-                                                 train_features=train_features,
-                                                 train_classes=train_classes,
-                                                 test_features=test_features,
-                                                 test_classes=test_classes)
+                    try:
+                        acc, auc_roc = classify_func(args=args,
+                                                     train_features=train_features,
+                                                     train_classes=train_classes,
+                                                     test_features=test_features,
+                                                     test_classes=test_classes)
+                    except Exception as es:
+                        print(es)
                     perf.append(acc)
                     perf_roc.append(auc_roc)
-                stx = "|".join(str(x) for x in grid_dict[args.learner])
-                mp = np.round(np.mean(perf), 4)
-                mp_roc = np.round(np.mean(perf_roc), 4)
-                if mp != "nan" and mp != np.nan:
-                    print(f"RESULT LINE {args.learner} {mp_roc} {mp} {line[0]} {line[1]} {line[2]}")
-                else:
-                    pass
+                save_results(args=args, dataset=line[0], accuracies=perf, roc_auc_scores=perf_roc,
+                             grid_dict=grid_dict[args.learner])

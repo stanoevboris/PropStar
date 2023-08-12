@@ -1,7 +1,11 @@
+import os
+import csv
 from collections import OrderedDict
 import numpy as np
 import logging
 from sklearn.preprocessing import KBinsDiscretizer
+
+PROJECT_DIR = os.path.dirname(__file__)
 
 logging.basicConfig(format='%(asctime)s - %(message)s',
                     datefmt='%d-%b-%y %H:%M:%S')
@@ -72,3 +76,34 @@ def interpolate_nans(X):
         mask_j = np.isnan(X[:, j])
         X[mask_j, j] = np.mean(np.flatnonzero(X))
     return X
+
+
+def calculate_stats(metric_name, scores):
+    stats = {
+        f'min_score_{metric_name}': min(scores),
+        f'max_score_{metric_name}': max(scores),
+        f'mean_score_{metric_name}': np.mean(scores),
+        f'std_score_{metric_name}': np.std(scores),
+    }
+    return stats
+
+
+def save_results(args, dataset, accuracies, roc_auc_scores, grid_dict):
+    results_dir_path = os.path.join(PROJECT_DIR, 'results')
+    os.makedirs(results_dir_path, exist_ok=True)
+
+    dataset = dataset.split(".")[0]
+
+    learner_results_file_path = os.path.join(results_dir_path, f'{dataset}_{args.representation_type}.csv')
+    accuracy_stats = calculate_stats(metric_name='acc', scores=accuracies)
+    roc_auc_stats = calculate_stats(metric_name='roc_auc', scores=roc_auc_scores)
+    args_dict = {arg: getattr(args, arg) if arg in grid_dict else '/' for arg in vars(args)}
+    data_dict = args_dict | accuracy_stats | roc_auc_stats
+    with open(learner_results_file_path, "a") as csvfile:
+        file_empty_check = os.stat(learner_results_file_path).st_size == 0
+        headers = [key for key in data_dict.keys()]
+        writer = csv.DictWriter(csvfile, delimiter=',', lineterminator='\n', fieldnames=headers)
+        if file_empty_check:
+            writer.writeheader()  # file doesn't exist yet, write a header
+
+        writer.writerow(data_dict)

@@ -51,13 +51,13 @@ classifier_func = {
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--learner", default="DRM")
+    parser.add_argument("--learner", default="random_forest_learner")
     parser.add_argument("--learning_rate",
                         default=0.001,
                         type=float,
                         help="Learning rate of starspace")
     parser.add_argument("--epochs",
-                        default=10,
+                        default=5,
                         type=int,
                         help="Number of epochs")
     parser.add_argument("--dropout",
@@ -116,7 +116,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     grid_dict = {
-        "DRM": {'learner': args.learner, 'epochs': args.epochs, 'learning_rate': args.learning_rate, 'hidden_size': args.hidden_size,
+        "DRM": {'learner': args.learner, 'epochs': args.epochs, 'learning_rate': args.learning_rate,
+                'hidden_size': args.hidden_size,
                 'dropout': args.dropout, 'representation_type': args.representation_type,
                 'num_features': args.num_features},
         "starspace": {'learner': args.learner, 'epochs': args.epochs, 'learning_rate': args.learning_rate,
@@ -124,15 +125,20 @@ if __name__ == "__main__":
                       'negative_search_limit': args.negative_search_limit,
                       'representation_type': args.representation_type,
                       'num_features': args.num_features},
-        "svm_learner": {'learner': args.learner, 'epochs': args.epochs, 'representation_type': args.representation_type, 'kernel': args.kernel,
+        "svm_learner": {'learner': args.learner, 'epochs': args.epochs, 'representation_type': args.representation_type,
+                        'kernel': args.kernel,
                         'C': args.C, 'gamma': args.gamma},
-        "extra_tree_learner": {'learner': args.learner, 'epochs': args.epochs, 'representation_type': args.representation_type,
+        "extra_tree_learner": {'learner': args.learner, 'epochs': args.epochs,
+                               'representation_type': args.representation_type,
                                'n_estimators': args.n_estimators},
-        "random_forest_learner": {'learner': args.learner, 'epochs': args.epochs, 'representation_type': args.representation_type,
+        "random_forest_learner": {'learner': args.learner, 'epochs': args.epochs,
+                                  'representation_type': args.representation_type,
                                   'n_estimators': args.n_estimators},
-        "ada_boost_learner": {'learner': args.learner, 'epochs': args.epochs, 'representation_type': args.representation_type,
+        "ada_boost_learner": {'learner': args.learner, 'epochs': args.epochs,
+                              'representation_type': args.representation_type,
                               'n_estimators': args.n_estimators},
-        "gradient_boost_learner": {'learner': args.learner, 'epochs': args.epochs, 'representation_type': args.representation_type,
+        "gradient_boost_learner": {'learner': args.learner, 'epochs': args.epochs,
+                                   'representation_type': args.representation_type,
                                    'n_estimators': args.n_estimators, 'learning_rate': args.learning_rate}
     }
 
@@ -170,13 +176,15 @@ if __name__ == "__main__":
 
                 # tables[target_table][target_attribute].replace('NULL', np.nan, inplace=True)
                 # tables[target_table] = tables[target_table].dropna(axis=0, subset=[target_attribute])
-                perf = []
-                perf_roc = []
+                accuracy_scores = []
+                f1_scores = []
+                roc_auc_scores = []
+                custom_roc_auc_scores = []
                 logging.info("Evaluation of {} - {}".format(
                     grid_dict[args.learner], target_attribute))
                 split_gen = preprocess_and_split(
                     tables[target_table],
-                    num_fold=10,
+                    num_fold=5,
                     target_attribute=target_attribute)
                 for train_index, test_index in split_gen:
                     # Encoder used only for WoE
@@ -212,14 +220,20 @@ if __name__ == "__main__":
 
                     classify_func = classifier_func[args.learner][args.representation_type]
                     try:
-                        acc, auc_roc = classify_func(args=args,
-                                                     train_features=train_features,
-                                                     train_classes=train_classes,
-                                                     test_features=test_features,
-                                                     test_classes=test_classes)
+                        acc, f1_score, auc_roc, custom_roc_auc = classify_func(args=args,
+                                                                               train_features=train_features,
+                                                                               train_classes=train_classes,
+                                                                               test_features=test_features,
+                                                                               test_classes=test_classes)
                     except Exception as es:
                         print(es)
-                    perf.append(acc)
-                    perf_roc.append(auc_roc)
-                save_results(args=args, dataset=line[0], accuracies=perf, roc_auc_scores=perf_roc,
+                    accuracy_scores.append(acc)
+                    f1_scores.append(f1_score)
+                    roc_auc_scores.append(auc_roc)
+                    custom_roc_auc_scores.append(custom_roc_auc)
+                scores = {'acc': accuracy_scores,
+                          'f1': f1_scores,
+                          'roc_auc': roc_auc_scores,
+                          'custom_roc_auc': custom_roc_auc_scores}
+                save_results(args=args, dataset=line[0], scores=scores,
                              grid_dict=grid_dict[args.learner])

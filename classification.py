@@ -3,7 +3,7 @@ import numpy as np
 from neural import *  # DRMs
 from learning import *  # starspace
 
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, accuracy_score, f1_score
 from scipy import sparse
 from tqdm import tqdm
 
@@ -16,20 +16,33 @@ def examine_batch_predictions(test_features_indexes,
     for index in tqdm(test_features_indexes):
         stats.setdefault(index, {})
         stats[index] = {label: 0 for label in unique_classes}
-        stats[index]["pred_score"] = []
+        stats[index]["pred_score"] = {label: [] for label in unique_classes}
     for index, pred_value, pred_score in tqdm(zip(test_features_indexes, predictions, predictions_scores)):
         stats[index][pred_value] += 1
-        stats[index]["pred_score"].append(pred_score)
+        stats[index]["pred_score"][pred_value].append(pred_score)
 
     batch_preds_classes = []
     batch_preds_scores = []
-    for key in stats:
+    batch_custom_pred_scores = []
+    for key in tqdm(stats):
         pred = max(stats[key], key=lambda k: stats[key].get(k) if k in unique_classes else -1)
-        pred_score = np.average(stats[key]["pred_score"])
+        pred_score = np.average(stats[key]["pred_score"][pred])
+
+        count_values_by_class = [stats[key][value] for value in unique_classes]
+        if 0 in count_values_by_class:
+            custom_pred_score = pred_score  # since the other class was not predicted once,
+            # we will take the already computed one
+        else:
+            avg_pred_score_by_class = [np.average(stats[key]["pred_score"][pred_value])
+                                       for pred_value in stats[key]["pred_score"]]
+            multiplied_list = [a * b for a, b in zip(avg_pred_score_by_class, count_values_by_class)]
+            custom_pred_score = np.sum(multiplied_list) / len(unique_classes)
+
         batch_preds_classes.append(pred)
         batch_preds_scores.append(pred_score)
+        batch_custom_pred_scores.append(custom_pred_score)
 
-    return batch_preds_classes, batch_preds_scores
+    return batch_preds_classes, batch_preds_scores, batch_custom_pred_scores
 
 
 def encode_classes(train_classes, test_classes):
@@ -51,19 +64,24 @@ def prop_drm_tfidf_classification(args, train_features, train_classes, test_feat
     # standard fit predict
     model.fit(train_features, train_classes)
     predictions = model.predict(test_features)
-    acc = accuracy_score(predictions, test_classes)
-    logging.info(acc)
+
+    acc = accuracy_score(test_classes, predictions)
+    f1 = f1_score(test_classes, predictions)
+    logging.info(f'Accuracy:{acc}')
+    logging.info(f'F1 score:{f1}')
 
     if len(np.unique(test_classes)) == 2:
-        predictions = model.predict(test_features,
+        prediction_scores = model.predict(test_features,
                                     return_proba=True)
-        roc = roc_auc_score(test_classes, predictions)
-        logging.info(roc)
+        roc = roc_auc_score(test_classes, prediction_scores)
+        custom_roc = 0
+        logging.info(f'ROC AUC: {roc}')
 
     else:
         roc = 0
+        custom_roc = 0
 
-    return acc, roc
+    return acc, f1, roc, custom_roc
 
 
 def prop_star_tfidf_classification(args, train_features, train_classes, test_features, test_classes):
@@ -81,16 +99,19 @@ def prop_star_tfidf_classification(args, train_features, train_classes, test_fea
                                 clean_tmp=False)
 
     if len(predictions) == 0:
-        perf_roc = 0
-        perf = 0
-        return perf, perf_roc
+        acc = 0
+        f1 = 0
+        roc = 0
+        custom_roc = 0
+        return acc, f1, roc, custom_roc
 
     try:
         acc = accuracy_score(test_classes, predictions)
+        f1 = f1_score(test_classes, predictions)
+        logging.info(f'Accuracy:{acc}')
+        logging.info(f'F1 score:{f1}')
 
-        logging.info(acc)
-
-        preds_scores = model.predict(
+        prediction_scores = model.predict(
             test_features,
             clean_tmp=True,
             return_int_predictions=False,
@@ -98,15 +119,18 @@ def prop_star_tfidf_classification(args, train_features, train_classes, test_fea
 
         if len(np.unique(test_classes)) == 2:
             roc = roc_auc_score(
-                test_classes, preds_scores)
-            logging.info(roc)
+                test_classes, prediction_scores)
+            logging.info(f'ROC AUC: {roc}')
+            custom_roc = 0
+
         else:
             roc = 0
+            custom_roc = 0
     except Exception as es:
         print(es)
         return
 
-    return acc, roc
+    return acc, f1, roc, custom_roc
 
 
 def prop_drm_woe_classification(args, train_features, train_classes, test_features, test_classes):
@@ -139,19 +163,26 @@ def prop_drm_woe_classification(args, train_features, train_classes, test_featur
     predictions_scores = model.predict(test_x,
                                        return_proba=True)
 
-    batch_preds_classes, batch_preds_scores = examine_batch_predictions(test_features.index,
-                                                                        unique_classes, predictions, predictions_scores)
+    batch_preds_classes, batch_pred_scores, batch_custom_pred_scores = examine_batch_predictions(test_features.index,
+                                                                                                 unique_classes,
+                                                                                                 predictions,
+                                                                                                 predictions_scores)
 
-    acc = accuracy_score(batch_preds_classes, test_classes_encoded)
-    logging.info(acc)
+    acc = accuracy_score(test_classes_encoded, batch_preds_classes)
+    f1 = f1_score(test_classes_encoded, batch_preds_classes)
+    logging.info(f'Accuracy:{acc}')
+    logging.info(f'F1 score:{f1}')
 
     if len(unique_classes) == 2:
-        roc = roc_auc_score(test_classes_encoded, batch_preds_scores)
-        logging.info(roc)
+        roc = roc_auc_score(test_classes_encoded, batch_pred_scores)
+        custom_roc = roc_auc_score(test_classes_encoded, batch_custom_pred_scores)
+        logging.info(f'ROC AUC:{roc}')
+        logging.info(f'Custom ROC AUC:{custom_roc}')
     else:
         roc = 0
+        custom_roc = 0
 
-    return acc, roc
+    return acc, f1, roc, custom_roc
 
 
 def prop_star_woe_classification(args, train_features, train_classes, test_features, test_classes):
@@ -190,29 +221,36 @@ def prop_star_woe_classification(args, train_features, train_classes, test_featu
             return_int_predictions=False,
             return_scores=True)  # use scores for auc.
 
-        batch_preds_classes, batch_preds_scores = examine_batch_predictions(test_features.index,
-                                                                            unique_classes,
-                                                                            predictions,
-                                                                            predictions_scores)
+        batch_preds_classes, batch_pred_scores, batch_custom_pred_scores = examine_batch_predictions(
+            test_features.index,
+            unique_classes,
+            predictions,
+            predictions_scores)
         if len(batch_preds_classes) == 0:
-            roc = 0
             acc = 0
-            return acc, roc
+            f1 = 0
+            roc = 0
+            custom_roc = 0
+            return acc, f1, roc, custom_roc
 
         acc = accuracy_score(test_classes_encoded, batch_preds_classes)
-        logging.info(acc)
+        f1 = f1_score(test_classes_encoded, batch_preds_classes)
+        logging.info(f'Accuracy:{acc}')
+        logging.info(f'F1 score:{f1}')
 
-        if len(np.unique(test_classes_encoded)) == 2:
-            roc = roc_auc_score(
-                test_classes_encoded, batch_preds_scores)
-            logging.info(roc)
+        if len(unique_classes) == 2:
+            roc = roc_auc_score(test_classes_encoded, batch_pred_scores)
+            custom_roc = roc_auc_score(test_classes_encoded, batch_custom_pred_scores)
+            logging.info(f'ROC AUC:{roc}')
+            logging.info(f'Custom ROC AUC:{custom_roc}')
         else:
             roc = 0
+            custom_roc = 0
     except Exception as es:
         print(es)
         return
 
-    return acc, roc
+    return acc, f1, roc, custom_roc
 
 
 learners_dict = {"svm_learner": svm_learner,
@@ -230,18 +268,22 @@ def traditional_learner_tfidf_classification(args, train_features, train_classes
 
     # standard fit predict
     predictions = model.predict(test_features)
-    acc = accuracy_score(predictions, test_classes)
-    logging.info(acc)
+    acc = accuracy_score(test_classes, predictions)
+    f1 = f1_score(test_classes, predictions)
+    logging.info(f'Accuracy:{acc}')
+    logging.info(f'F1 score:{f1}')
 
     if len(np.unique(test_classes)) == 2:
         prediction_scores = model.predict_proba(test_features)
         roc = roc_auc_score(test_classes, prediction_scores[:, 1])
-        logging.info(roc)
+        logging.info(f'ROC AUC:{roc}')
+        custom_roc = 0  # we are not calculating custom roc for tfidf mode
 
     else:
         roc = 0
+        custom_roc = 0
 
-    return acc, roc
+    return acc, f1, roc, custom_roc
 
 
 def traditional_learner_woe_classification(args, train_features, train_classes, test_features, test_classes):
@@ -270,18 +312,22 @@ def traditional_learner_woe_classification(args, train_features, train_classes, 
     predictions = model.predict(test_x)
     predictions_scores = model.predict_proba(test_x)
 
-    batch_preds_classes, batch_preds_scores = examine_batch_predictions(test_features.index,
-                                                                        unique_classes,
-                                                                        predictions,
-                                                                        predictions_scores[:, 1])
+    batch_preds_classes, batch_pred_scores, batch_custom_pred_scores = examine_batch_predictions(test_features.index,
+                                                                                                 unique_classes,
+                                                                                                 predictions,
+                                                                                                 predictions_scores[:,1])
 
-    acc = accuracy_score(batch_preds_classes, test_classes_encoded)
-    logging.info(acc)
+    acc = accuracy_score(test_classes_encoded, batch_preds_classes)
+    f1 = f1_score(test_classes_encoded, batch_preds_classes)
+    logging.info(f'Accuracy:{acc}')
+    logging.info(f'F1 score:{f1}')
 
     if len(unique_classes) == 2:
-        roc = roc_auc_score(test_classes_encoded, batch_preds_scores)
-        logging.info(roc)
+        roc = roc_auc_score(test_classes_encoded, batch_pred_scores)
+        custom_roc = roc_auc_score(test_classes_encoded, batch_custom_pred_scores)
+        logging.info(f'ROC AUC:{roc}')
+        logging.info(f'Custom ROC AUC:{custom_roc}')
     else:
         roc = 0
-
-    return acc, roc
+        custom_roc = 0
+    return acc, f1, roc, custom_roc

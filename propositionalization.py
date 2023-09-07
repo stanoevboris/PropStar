@@ -46,7 +46,7 @@ def table_generator(sql_file, variable_types):
     header_init = False
     col_types = []
 
-    ## Read the file table-by-table (This could be done in a lazy manner if needed)
+    # Read the file table-by-table (This could be done in a lazy manner if needed)
     with open(sql_file, "r", encoding="utf-8", errors="ignore") as sqf:
         for line in sqf:
 
@@ -508,8 +508,11 @@ def generate_custom_relational_words(tables,
 
                 columns_to_drop = {f"{key}__y" for key in itertools.chain(all_foreign_keys, primary_keys.values()) if
                                    f"{key}__y" not in core_foreign_keys and f"{key}__y" in features_data.columns}
-
+                columns_to_drop_special_case = {key for key in all_foreign_keys if
+                                                key not in core_foreign_keys and key in features_data.columns}
+                columns_to_drop |= columns_to_drop_special_case
                 features_data.drop(list(columns_to_drop), axis=1, inplace=True)
+    features_data.drop(target_attribute, axis=1, inplace=True)
     features_data = features_data.apply(pd.to_numeric, errors='ignore')
     try:
         features_data.set_index(primary_keys[target_table], inplace=True)
@@ -529,29 +532,27 @@ def generate_custom_relational_words(tables,
 
 
 def calculate_woe_train_data(features_data, target_classes):
-    columns = features_data.columns.values
-    vectorizer = woe.WOEEncoder(cols=columns)
+    string_cols = features_data.select_dtypes(include='object').columns.values
+    woe_data = features_data[string_cols].copy()
+
+    vectorizer = woe.WOEEncoder(cols=string_cols)
 
     try:
-        if len(np.unique(target_classes)) > 2:
-            features_data = features_data.reset_index(drop=True)
-            wrapper = PolynomialWrapper(vectorizer)
-            woe_encoded = wrapper.fit_transform(X=features_data, y=target_classes)
-            return woe_encoded, wrapper
-        else:
-            label_encoder = preprocessing.LabelEncoder()
-            target_classes = label_encoder.fit_transform(target_classes)
-            woe_encoded = vectorizer.fit_transform(X=features_data, y=target_classes)
-            return woe_encoded, vectorizer
+        label_encoder = preprocessing.LabelEncoder()
+        target_classes = label_encoder.fit_transform(target_classes)
+        woe_encoded = vectorizer.fit_transform(X=woe_data, y=target_classes)
+        features_data.update(woe_encoded)
+        return features_data, vectorizer
 
     except Exception as es:
         print(es)
         return
 
-    # mtx = sparse.csr_matrix(woe_encoded_train)
-
 
 def calculate_woe_test_data(features_data, vectorizer):
-    woe_encoded = vectorizer.transform(X=features_data)
-    # mtx = sparse.csr_matrix(woe_encoded_train)
-    return woe_encoded
+    string_cols = features_data.select_dtypes(include='object').columns.values
+    woe_data = features_data[string_cols].copy()
+
+    woe_encoded = vectorizer.transform(X=woe_data)
+    features_data.update(woe_encoded)
+    return features_data

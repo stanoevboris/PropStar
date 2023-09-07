@@ -72,7 +72,7 @@ def prop_drm_tfidf_classification(args, train_features, train_classes, test_feat
 
     if len(np.unique(test_classes)) == 2:
         prediction_scores = model.predict(test_features,
-                                    return_proba=True)
+                                          return_proba=True)
         roc = roc_auc_score(test_classes, prediction_scores)
         custom_roc = 0
         logging.info(f'ROC AUC: {roc}')
@@ -143,14 +143,15 @@ def prop_drm_woe_classification(args, train_features, train_classes, test_featur
         train_y = [train_classes[index] for index in train_features.index]
         test_y = [test_classes[index] for index in test_features.index]
 
-    train_x = sparse.csr_matrix(train_features)
-    test_x = sparse.csr_matrix(test_features)
+    train_x = train_features.copy()
+    test_x = test_features.copy()
 
     train_y, test_y, encoder = encode_classes(train_y, test_y)
 
     unique_classes = set(test_y)
     logging.info(f"Unique classes:{unique_classes}")
-
+    if len(test_classes) != len(test_features.index):
+        test_classes = {key: test_classes[key] for key in test_classes.keys() if key in test_features.index}
     test_classes_encoded = encoder.transform(list(test_classes.values()))
     model = E2EDNN(num_epochs=args.epochs,
                    learning_rate=args.learning_rate,
@@ -195,12 +196,15 @@ def prop_star_woe_classification(args, train_features, train_classes, test_featu
         train_y = [train_classes[index] for index in train_features.index]
         test_y = [test_classes[index] for index in test_features.index]
 
-    train_x = sparse.csr_matrix(train_features)
-    test_x = sparse.csr_matrix(test_features)
+    train_x = train_features.copy()
+    test_x = test_features.copy()
 
     train_y, test_y, encoder = encode_classes(train_y, test_y)
 
     unique_classes = set(test_y)
+    logging.info(f"Unique classes:{unique_classes}")
+    if len(test_classes) != len(test_features.index):
+        test_classes = {key: test_classes[key] for key in test_classes.keys() if key in test_features.index}
     test_classes_encoded = encoder.transform(list(test_classes.values()))
 
     model = starspaceLearner(epoch=args.epochs,
@@ -296,14 +300,15 @@ def traditional_learner_woe_classification(args, train_features, train_classes, 
         train_y = [train_classes[index] for index in train_features.index]
         test_y = [test_classes[index] for index in test_features.index]
 
-    train_x = sparse.csr_matrix(train_features)
-    test_x = sparse.csr_matrix(test_features)
+    train_x = train_features.copy()
+    test_x = test_features.copy()
 
     train_y, test_y, encoder = encode_classes(train_y, test_y)
 
     unique_classes = set(test_y)
     logging.info(f"Unique classes:{unique_classes}")
-
+    if len(test_classes) != len(test_features.index):
+        test_classes = {key: test_classes[key] for key in test_classes.keys() if key in test_features.index}
     test_classes_encoded = encoder.transform(list(test_classes.values()))
 
     learner_func = learners_dict[args.learner]
@@ -315,7 +320,8 @@ def traditional_learner_woe_classification(args, train_features, train_classes, 
     batch_preds_classes, batch_pred_scores, batch_custom_pred_scores = examine_batch_predictions(test_features.index,
                                                                                                  unique_classes,
                                                                                                  predictions,
-                                                                                                 predictions_scores[:,1])
+                                                                                                 predictions_scores[:,
+                                                                                                 1])
 
     acc = accuracy_score(test_classes_encoded, batch_preds_classes)
     f1 = f1_score(test_classes_encoded, batch_preds_classes)

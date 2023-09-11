@@ -184,15 +184,9 @@ if __name__ == "__main__":
                     grid_dict[args.learner], target_attribute))
                 split_gen = preprocess_and_split(
                     tables[target_table],
-                    num_fold=5,
+                    num_fold=2,
                     target_attribute=target_attribute)
                 for train_index, test_index in split_gen:
-                    # Encoder used only for WoE
-                    encoder = CountVectorizer(lowercase=False,
-                                              binary=True,
-                                              token_pattern='[a-zA-Z0-9$&+,:;=?@#|<>.^*()%!-_]+',
-                                              ngram_range=(1, 1))  # higher relation orders result in high
-                    # memory load, thread with caution!
                     generate_relational_words_func = feature_func[args.representation_type]
                     train_features, train_classes, vectorizer = generate_relational_words_func(
                         tables,
@@ -201,7 +195,6 @@ if __name__ == "__main__":
                         target_attribute,
                         relation_order=(1, 1),
                         indices=train_index,
-                        encoder=encoder,
                         vectorization_type=args.representation_type,
                         num_features=args.num_features,
                         primary_keys=primary_keys)
@@ -213,7 +206,6 @@ if __name__ == "__main__":
                         relation_order=(1, 1),
                         vectorizer=vectorizer,
                         indices=test_index,
-                        encoder=encoder,
                         vectorization_type=args.representation_type,
                         num_features=args.num_features,
                         primary_keys=primary_keys)

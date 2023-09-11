@@ -167,7 +167,6 @@ def generate_relational_words(tables,
                               target_attribute=None,
                               relation_order=(2, 4),
                               indices=None,
-                              encoder=None,
                               vectorizer=None,
                               vectorization_type="tfidf",
                               num_features=10000,
@@ -311,14 +310,12 @@ def generate_relational_words(tables,
     # Vectorizer is an arbitrary vectorizer, some of the well known ones are implemented here, it's simple to add your own!
     if vectorizer:
         matrix = relational_words_to_matrix_with_vec(
-            feature_vectors, target_classes.array, vectorizer, encoder, vectorization_type=vectorization_type)
+            feature_vectors,vectorizer, vectorization_type=vectorization_type)
         return matrix, target_classes.array
     else:
         matrix, vectorizer = relational_words_to_matrix(
             feature_vectors,
             relation_order,
-            target_classes.array,
-            encoder,
             vectorization_type,
             max_features=num_features)
         logging.info("Stored sparse representation of the witemsets.")
@@ -326,9 +323,7 @@ def generate_relational_words(tables,
 
 
 def relational_words_to_matrix_with_vec(fw,
-                                        target_classes,
                                         vectorizer,
-                                        encoder,
                                         vectorization_type="tfidf"):
     """
     Just do the transformation. This is for proper cross-validation (on the test set)
@@ -339,14 +334,6 @@ def relational_words_to_matrix_with_vec(fw,
         for k, v in fw.items():
             docs.append(set(v))
         mtx = vectorizer.transform(docs)
-    elif vectorization_type == 'woe':
-        resulting_documents = []
-        for v in fw.values():
-            resulting_documents.append(" ".join(v))
-        encoded_matrix, word_corpus = one_hot_encode_test_data(encoder, resulting_documents)
-        X = pd.DataFrame(encoded_matrix, columns=word_corpus)
-        woe_encoded_train = vectorizer.transform(X=X)
-        mtx = sparse.csr_matrix(woe_encoded_train)
     else:
         for k, v in fw.items():
             docs.append(" ".join(v))
@@ -357,8 +344,6 @@ def relational_words_to_matrix_with_vec(fw,
 
 def relational_words_to_matrix(fw,
                                relation_order,
-                               target_classes,
-                               encoder,
                                vectorization_type="tfidf",
                                max_features=10000):
     """
@@ -398,13 +383,6 @@ def relational_words_to_matrix(fw,
             docs.append(" ".join(v))
 
         mtx = vectorizer.fit_transform(docs)
-
-    elif vectorization_type == 'woe':
-        X = pd.DataFrame(encoded_matrix, columns=word_corpus)
-        vectorizer = woe.WOEEncoder(cols=word_corpus)
-        woe_encoded_train = vectorizer.fit_transform(X=X, y=target_classes)
-        mtx = sparse.csr_matrix(woe_encoded_train)
-
     return mtx, vectorizer
 
 
@@ -414,7 +392,6 @@ def generate_custom_relational_words(tables,
                                      target_attribute=None,
                                      relation_order=(2, 4),
                                      indices=None,
-                                     encoder=None,
                                      vectorizer=None,
                                      vectorization_type="tfidf",
                                      num_features=10000,

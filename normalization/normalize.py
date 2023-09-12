@@ -1,12 +1,12 @@
 import pandas as pd
 from sqlalchemy import create_engine, text
 from sqlalchemy_utils import database_exists, create_database
-from normalization.conf import create_mssql_connection
+from db_utils import MSSQLDatabase
 
 
 def create_connection(database_name: str):
-    connection_url = create_mssql_connection(database_name)
-    engine = create_engine(connection_url, echo=True)
+    mssql_db = MSSQLDatabase(database_name)
+    engine = create_engine(mssql_db.connection_url, echo=True)
     if not database_exists(engine.url):
         create_database(engine.url)
 
@@ -19,7 +19,7 @@ def create_mssql_schema(connection, database_name: str):
         f" BEGIN "
         f"DROP SCHEMA [{database_name}];"
         f" END "
-        ))
+    ))
     connection.execute(text(f"CREATE SCHEMA [{database_name}] AUTHORIZATION [dbo]"))
 
 
@@ -119,6 +119,7 @@ class Normalize:
                 db_parent_table = f"{database_name}.{parent_table}"
                 for child_table in self.relations[parent_table]:
                     db_child_table = f"{database_name}.{child_table}"
-                    connection.execute(text(f"ALTER TABLE {db_child_table} ADD CONSTRAINT FK_{child_table}_{parent_table} "
-                                            f"FOREIGN KEY ({self.relations[parent_table][child_table][1]}) "
-                                            f"REFERENCES {db_parent_table}({self.relations[parent_table][child_table][0]});"))
+                    connection.execute(
+                        text(f"ALTER TABLE {db_child_table} ADD CONSTRAINT FK_{child_table}_{parent_table} "
+                             f"FOREIGN KEY ({self.relations[parent_table][child_table][1]}) "
+                             f"REFERENCES {db_parent_table}({self.relations[parent_table][child_table][0]});"))

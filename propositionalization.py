@@ -1,29 +1,47 @@
 import itertools
-import numpy as np
 import pandas as pd
-import queue
 import networkx as nx
-import tqdm
-from collections import defaultdict, OrderedDict
-from sklearn.dummy import DummyClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer, HashingVectorizer
-from sklearn import preprocessing
 import re
-from scipy import sparse
 
 from neural import *  ## DRMs
 from learning import *  ## starspace
-from utils import clear, cleanp, OrderedDictList, OrderedDict
+from utils import clear, cleanp, OrderedDictList
 from vectorizers import *  ## ConjunctVectorizer
-from sklearn.feature_extraction.text import CountVectorizer
 from category_encoders import woe
-from category_encoders.wrapper import PolynomialWrapper
 
 import logging
+import sqlalchemy as sa
+from db_utils import MSSQLDatabase, MYSQLDatabase
 
 logging.basicConfig(format='%(asctime)s - %(message)s',
                     datefmt='%d-%b-%y %H:%M:%S')
 logging.getLogger().setLevel(logging.INFO)
+
+sql_type_dict = {
+    "mssql": MSSQLDatabase,
+    "mysql": MYSQLDatabase
+}
+
+
+def get_data(sql_type: str, target_schema: str):
+    mssql_db_object = sql_type_dict[sql_type]
+    mssql_db = mssql_db_object(target_schema)
+    engine = sa.create_engine(mssql_db.connection_url, echo=True)
+    with engine.connect() as connection:
+        tables = sa.inspect(engine).get_table_names(schema=target_schema)
+        logging.info(f"Total tables read from the given schema {len(tables)}")
+        logging.info(f"Tables read: {tables}")
+        tables_dict = {}
+        for table in tables:
+            tables_dict[table] = mssql_db.get_table(table_name=table, connection=connection)
+        pks = pd.read_sql(sa.text(mssql_db.get_primary_keys()), connection)
+        fks = pd.read_sql(sa.text(mssql_db.get_foreign_keys()), connection)
+
+        # Conversion for PKs and FKs in order to match the source code format of the variables
+        pks_dict = dict(zip(pks['TableName'], pks['PrimaryKeyColumn']))
+        fk_graph = fks[['ChildTable', 'ChildColumn', 'ReferencedTable', 'ReferencedColumn']].values.tolist()
+        return tables_dict, pks_dict, fk_graph
 
 
 def table_generator(sql_file, variable_types):
@@ -63,7 +81,7 @@ def table_generator(sql_file, variable_types):
 
             if "INSERT INTO" in line:
 
-                ## Do some basic cleaning and create the dataframe
+                # Do some basic cleaning and create the dataframe
                 table_header = False
                 header_init = False
                 vals = line.strip().split()
@@ -310,7 +328,7 @@ def generate_relational_words(tables,
     # Vectorizer is an arbitrary vectorizer, some of the well known ones are implemented here, it's simple to add your own!
     if vectorizer:
         matrix = relational_words_to_matrix_with_vec(
-            feature_vectors,vectorizer, vectorization_type=vectorization_type)
+            feature_vectors, vectorizer, vectorization_type=vectorization_type)
         return matrix, target_classes.array
     else:
         matrix, vectorizer = relational_words_to_matrix(

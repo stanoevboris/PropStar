@@ -4,28 +4,6 @@ from abc import ABC, abstractmethod
 import pandas as pd
 
 
-def get_mssql_primary_keys_from_schema(target_schema: str):
-    pass
-
-
-def get_mssql_foreign_keys_from_schema(target_schema: str):
-    pass
-
-
-def create_mysql_connection(database: str):
-    if not database:
-        raise ValueError("Database missing!")
-
-    return engine.URL.create(
-        MYSQL_DBAPI,
-        username=MYSQL_USER,
-        password=MYSQL_PASS,
-        host=MYSQL_HOST,
-        port=MYSQL_PORT,
-        database=database
-    )
-
-
 class Database(ABC):
 
     @abstractmethod

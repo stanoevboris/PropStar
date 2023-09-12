@@ -1,8 +1,10 @@
 # example_sql	target_table	target_attribute (seperated with tab)
-mutagenesis_42.sql	drugs	active
-mutagenesis_188.sql	drugs	active
-trains.sql	trains	direction
-ncaa.sql target team_id1_wins
+#credit_g.sql target_table target
+credit_exp1.sql target class
+#trains.sql	trains	direction
+#ncaa.sql target team_id1_wins
+#mutagenesis_42.sql	drugs	active
+#mutagenesis_188.sql	drugs	active
 #Basketball_women.sql teams playoff
 #PTE.sql pte_active is_active
 #cacn.sql	canc	class

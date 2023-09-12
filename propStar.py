@@ -582,16 +582,17 @@ if __name__ == "__main__":
                             num_fold=10,
                             target_attribute=target_attribute)
                         for train_index, test_index in split_gen:
+                            # Encoder used only for WoE
                             encoder = CountVectorizer(lowercase=False,
                                                       binary=True,
                                                       token_pattern='[a-zA-Z0-9$&+,:;=?@#|<>.^*()%!-_]+',
-                                                      ngram_range=(1, 2))                            ## higher relation orders result in high memory load, thread with caution!
+                                                      ngram_range=(1, 1))                            # higher relation orders result in high memory load, thread with caution!
                             train_features, train_classes, vectorizer = generate_relational_words(
                                 tables,
                                 fkg,
                                 target_table,
                                 target_attribute,
-                                relation_order=(1, 2),
+                                relation_order=(1, 1),
                                 indices=train_index,
                                 encoder=encoder,
                                 vectorization_type=pars[4],
@@ -664,16 +665,17 @@ if __name__ == "__main__":
                             num_fold=10,
                             target_attribute=target_attribute)
                         for train_index, test_index in split_gen:
+                            # Encoder used only for WoE
                             encoder = CountVectorizer(lowercase=False,
                                                       binary=True,
                                                       token_pattern='[a-zA-Z0-9$&+,:;=?@#|<>.^*()%!-_]+',
-                                                      ngram_range=(1, 2))
+                                                      ngram_range=(1, 1))
                             train_features, train_classes, vectorizer = generate_relational_words(
                                 tables,
                                 fkg,
                                 target_table,
                                 target_attribute,
-                                relation_order=(1, 2),
+                                relation_order=(1, 1),
                                 indices=train_index,
                                 encoder=encoder,
                                 vectorization_type=pars[5],

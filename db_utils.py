@@ -115,8 +115,9 @@ class MYSQLDatabase(Database):
         return df
 
     def get_primary_keys(self):
-        return f"""SELECT 
-                        TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, DATA_TYPE 
+        return f"""SELECT
+                        TABLE_NAME as TableName,
+                         COLUMN_NAME as PrimaryKeyColumn
                     FROM 
                         INFORMATION_SCHEMA.COLUMNS 
                     WHERE 

@@ -1,10 +1,2 @@
-# example_sql	target_table	target_attribute (seperated with tab)
-#credit_g.sql target_table target
-credit_exp1.sql target class
-#trains.sql	trains	direction
-#ncaa.sql target team_id1_wins
-#mutagenesis_42.sql	drugs	active
-#mutagenesis_188.sql	drugs	active
-#Basketball_women.sql teams playoff
-#PTE.sql pte_active is_active
-#cacn.sql	canc	class
+# sql_type(mssql/mysql) target_schema   target_table    target_column
+mssql   credit_exp1 target  class

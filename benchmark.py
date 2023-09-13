@@ -10,7 +10,9 @@ from sklearn.metrics import roc_auc_score
 from sklearn import preprocessing
 
 from learning import preprocess_and_split
-from propositionalization import table_generator, generate_relational_words, generate_custom_relational_words
+from propositionalization import (get_data,
+                                  generate_relational_words,
+                                  generate_custom_relational_words)
 from classification import *
 from utils import save_results
 
@@ -163,19 +165,20 @@ if __name__ == "__main__":
         for line in lines:
             if line.strip()[0] != "#":
                 line = line.strip().split()
-                example_sql = "./sql_data/" + line[0]
-                target_table = line[1]
-                target_attribute = line[2]
+                # example_sql = "./sql_data/" + line[0]
+                # target_table = line[1]
+                # target_attribute = line[2]
+                sql_type = line[0]
+                target_schema = line[1]
+                target_table = line[2]
+                target_attribute = line[3]
 
-                logging.info("Running for example_sql: " + example_sql +
+                logging.info("Running for dataset: " + target_schema +
                              ", target_table: " + target_table +
                              ", target_attribute " + target_attribute)
 
-                tables, fkg, primary_keys = table_generator(
-                    example_sql, variable_types)
+                tables, primary_keys, fkg = get_data(sql_type=sql_type, target_schema=target_schema)
 
-                # tables[target_table][target_attribute].replace('NULL', np.nan, inplace=True)
-                # tables[target_table] = tables[target_table].dropna(axis=0, subset=[target_attribute])
                 accuracy_scores = []
                 f1_scores = []
                 roc_auc_scores = []
@@ -227,5 +230,5 @@ if __name__ == "__main__":
                           'f1': f1_scores,
                           'roc_auc': roc_auc_scores,
                           'custom_roc_auc': custom_roc_auc_scores}
-                save_results(args=args, dataset=line[0], scores=scores,
+                save_results(args=args, dataset=target_schema, scores=scores,
                              grid_dict=grid_dict[args.learner])

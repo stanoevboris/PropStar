@@ -22,8 +22,8 @@ class Database(ABC):
 class MSSQLDatabase(Database):
 
     def __init__(self, target_schema: str):
-        self.username = MSSQL_USER
-        self.password = MSSQL_PASS
+        self.username = MSSQL_READ_USER
+        self.password = MSSQL_READ_PASS
         self.host = MSSQL_HOST
         self.port = MSSQL_PORT
         self.database = MSSQL_DEFAULT_DB

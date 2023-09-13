@@ -126,7 +126,7 @@ def generate_relational_words(tables,
         for i in range(len(row)):
             column_name = row.index[i]
             if column_name != target_attribute and not column_name in core_foreign_keys:
-                witem = "-".join([target_table, column_name, row[i]])
+                witem = "-".join([target_table, column_name, str(row[i])])
                 feature_vectors[index].append(witem)
                 num_witems += 1
                 total_witems.add(witem)
@@ -388,7 +388,9 @@ def generate_custom_relational_words(tables,
     available_keys = {key for key in all_foreign_keys
                       if key in features_data.columns and key != primary_keys[target_table]}
     available_keys |= {value for key, value in primary_keys.items()
-                       if key != target_table and value in features_data.columns}
+                       if key != target_table
+                       and value != primary_keys[target_table]
+                       and value in features_data.columns}
     features_data.drop(list(available_keys), axis=1, inplace=True)
     features_data.drop(target_attribute, axis=1, inplace=True)
     features_data = features_data.apply(pd.to_numeric, errors='ignore')

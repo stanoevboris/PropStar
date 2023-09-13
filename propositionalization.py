@@ -44,129 +44,6 @@ def get_data(sql_type: str, target_schema: str):
         return tables_dict, pks_dict, fk_graph
 
 
-def table_generator(sql_file, variable_types):
-    """
-    A simple SQLite parser. This is inspired by the official SQL library, yet keeps only minimal overhead.
-    input: a .sql data dump from e.g., relational.fit.cz
-    output: Pandas represented-linked dataframe
-    """
-
-    table_trigger = False
-    table_header = False
-    current_table = None
-    sqt = defaultdict(list)
-    tabu = ["KEY", "PRIMARY", "CONSTRAINT"]
-    table_keys = defaultdict(list)
-    primary_keys = {}
-    foreign_key_graph = []
-    fill_table = False
-    tables = dict()
-    header_init = False
-    col_types = []
-
-    # Read the file table-by-table (This could be done in a lazy manner if needed)
-    with open(sql_file, "r", encoding="utf-8", errors="ignore") as sqf:
-        for line in sqf:
-
-            if "CREATE TABLE" in line:
-                header_init = True
-
-            if header_init:
-                if "DEFAULT" in line:
-                    if "ENGINE" in line:
-                        continue
-
-                    ctype = line.split()[1]
-                    col_types.append(ctype)
-
-            if "INSERT INTO" in line:
-
-                # Do some basic cleaning and create the dataframe
-                table_header = False
-                header_init = False
-                vals = line.strip().split()
-                vals_real = " ".join(vals[4:]).split("),(")
-                vals_real[0] = vals_real[0].replace("(", "")
-                vals_real[len(vals_real) - 1] = vals_real[len(vals_real) -
-                                                          1].replace(");", "")
-                col_num = len(sqt[current_table])
-
-                vx = list(
-                    filter(lambda x: len(x) == col_num, [
-                        re.split(r",(?=(?:[^\']*\'[^\']*\')*[^\']*$)", x)
-                        for x in vals_real
-                    ]))
-
-                if len(vx) == 0:
-
-                    ## this was added for the movies.sql case
-                    vx = []
-
-                    for x in vals_real:
-                        parts = x.split(",")
-                        vx.append(parts[len(parts) - col_num:])
-
-                dfx = pd.DataFrame(vx)
-
-                ## Discretize continuous attributes.
-                #                if dfx.shape[1] == len(col_types):
-                #                    dfx = discretize_candidates(dfx,col_types)
-
-                col_types = []
-
-                try:
-                    assert dfx.shape[1] == len(sqt[current_table])
-
-                except:
-                    logging.info(sqt[current_table])
-                    logging.info(
-                        col_num,
-                        re.split(r",(?=(?:[^\']*\'[^\']*\')*[^\']*$)",
-                                 vals_real[0]))
-
-                try:
-                    dfx.columns = [clear(x) for x in sqt[current_table]
-                                   ]  ## some name reformatting.
-                except:
-                    dfx.columns = [x for x in sqt[current_table]
-                                   ]  ## some name reformatting.
-
-                tables[current_table] = dfx
-
-            ## get the foreign key graph.
-            if table_trigger and table_header:
-                line = line.strip().split()
-                if len(line) > 0:
-                    if line[0] not in tabu:
-                        if line[0] != "--":
-                            if re.sub(r'\([^)]*\)', '',
-                                      line[1]).lower() in variable_types:
-                                sqt[current_table].append(clear(line[0]))
-                    else:
-                        if line[0] == "KEY":
-                            table_keys[current_table].append(clear(line[2]))
-
-                        if line[0] == "PRIMARY":
-                            primary_keys[current_table] = cleanp(clear(
-                                line[2]))
-                            table_keys[current_table].append(clear(line[2]))
-
-                        if line[0] == "CONSTRAINT":
-                            ## Structure in the form of (t1 a1 t2 a2) is used.
-                            foreign_key_quadruplet = [
-                                clear(cleanp(x)) for x in
-                                [current_table, line[4], line[6], line[7]]
-                            ]
-                            foreign_key_graph.append(foreign_key_quadruplet)
-
-            if "CREATE TABLE" in line:
-                table_trigger = True
-                table_header = True
-                current_table = clear(line.strip().split(" ")[2])
-
-    return tables, foreign_key_graph, primary_keys
-
-
 def get_table_keys(quadruplet):
     """
     A basic method for gaining a given table's keys.
@@ -507,6 +384,12 @@ def generate_custom_relational_words(tables,
                                                 key not in core_foreign_keys and key in features_data.columns}
                 columns_to_drop |= columns_to_drop_special_case
                 features_data.drop(list(columns_to_drop), axis=1, inplace=True)
+    # drop all keys
+    available_keys = {key for key in all_foreign_keys
+                      if key in features_data.columns and key != primary_keys[target_table]}
+    available_keys |= {value for key, value in primary_keys.items()
+                       if key != target_table and value in features_data.columns}
+    features_data.drop(list(available_keys), axis=1, inplace=True)
     features_data.drop(target_attribute, axis=1, inplace=True)
     features_data = features_data.apply(pd.to_numeric, errors='ignore')
     try:

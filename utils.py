@@ -94,7 +94,7 @@ def save_results(args, dataset, scores, grid_dict):
 
     dataset = dataset.split(".")[0]
 
-    learner_results_file_path = os.path.join(results_dir_path, f'{dataset}_{args.representation_type}.csv')
+    learner_results_file_path = os.path.join(results_dir_path, f'{dataset}.csv')
     args_dict = {arg: getattr(args, arg) if arg in grid_dict else '/' for arg in vars(args)}
     data_dict = args_dict
     for metric in scores:

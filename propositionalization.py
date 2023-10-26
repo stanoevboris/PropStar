@@ -307,6 +307,8 @@ def generate_custom_relational_words(tables,
 
         # foreign key mapping
         t1, k1, t2, k2 = foreign_key
+        if t1 == 'SalesOrderHeaderSalesReason':
+            continue
 
         if t1 == target_table:
             core_foreign_keys.add(k1)
@@ -321,7 +323,7 @@ def generate_custom_relational_words(tables,
         fk_graph.add_edge((t1, k1), (t2, k2))
 
     if not indices is None:
-        core_table = tables[target_table].iloc[indices, :]
+        core_table = tables[target_table].iloc[indices]
     else:
         core_table = tables[target_table]
 
@@ -393,6 +395,7 @@ def generate_custom_relational_words(tables,
                        and value in features_data.columns}
     features_data.drop(list(available_keys), axis=1, inplace=True)
     features_data.drop(target_attribute, axis=1, inplace=True)
+    features_data = features_data.loc[:, ~features_data.columns.str.endswith('__y')]
     features_data = features_data.apply(pd.to_numeric, errors='ignore')
     try:
         features_data.set_index(primary_keys[target_table], inplace=True)

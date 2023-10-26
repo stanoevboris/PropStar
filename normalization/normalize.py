@@ -1,17 +1,6 @@
 import pandas as pd
 from sqlalchemy import create_engine, text
-from sqlalchemy_utils import database_exists, create_database
-from db_utils import MSSQLDatabase
-
-
-def create_connection(database_name: str):
-    mssql_db = MSSQLDatabase(database_name)
-    engine = create_engine(mssql_db.connection_url, echo=True)
-    if not database_exists(engine.url):
-        create_database(engine.url)
-
-    return engine
-
+from db_utils import create_connection
 
 def create_mssql_schema(connection, database_name: str):
     connection.execute(text(

@@ -1,7 +1,7 @@
 import numpy as np
 
-from neural import *  # DRMs
-from learning import *  # starspace
+from neural import *
+from learning import *
 
 from sklearn.metrics import roc_auc_score, accuracy_score, f1_score
 from scipy import sparse

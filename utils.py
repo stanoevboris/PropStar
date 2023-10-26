@@ -1,8 +1,12 @@
 import os
 import csv
 from collections import OrderedDict
+from typing import List, Optional
+
 import numpy as np
 import logging
+
+import pandas as pd
 from sklearn.preprocessing import KBinsDiscretizer
 
 PROJECT_DIR = os.path.dirname(__file__)
@@ -96,7 +100,8 @@ def save_results(args, dataset, scores, grid_dict):
 
     learner_results_file_path = os.path.join(results_dir_path, f'{dataset}.csv')
     args_dict = {arg: getattr(args, arg) if arg in grid_dict else '/' for arg in vars(args)}
-    data_dict = args_dict
+    data_dict = args_dict | {'labels_occurrence_percentage': grid_dict.get('labels_occurrence_percentage'),
+                             'total_execution_time': grid_dict.get('total_execution_time')}
     for metric in scores:
         data_dict = data_dict | calculate_stats(metric_name=metric, scores=scores[metric])
     with open(learner_results_file_path, "a") as csvfile:
@@ -107,3 +112,40 @@ def save_results(args, dataset, scores, grid_dict):
             writer.writeheader()  # file doesn't exist yet, write a header
 
         writer.writerow(data_dict)
+
+
+def preprocess_tables(target_schema: str, tables: dict) -> dict:
+    if target_schema == 'AdventureWorks2014':
+        soh = tables['SalesOrderHeader'].copy()
+        soh['previous_order_date'] = soh.groupby('CustomerID')['OrderDate'].shift(1)
+        soh['days_without_order'] = (soh['OrderDate'] - soh['previous_order_date']).dt.days.fillna(0)
+        cut_off_date = soh['OrderDate'].max() - pd.DateOffset(days=180)
+
+        def calculate_churn(row):
+            if row['OrderDate'] >= cut_off_date:
+                return None
+            elif row['days_without_order'] <= 180:
+                return 0
+            else:
+                return 1
+
+        soh['churn'] = soh.apply(calculate_churn, axis=1)
+
+        # Reset the index
+        soh = soh[soh['churn'].notna()]
+        soh.reset_index(drop=True, inplace=True)
+        soh['churn'] = soh['churn'].astype(np.int64)
+        # soh['SalesPersonID'] = soh['churn'].astype(np.int64)
+
+        tables['SalesOrderHeader'] = soh.copy()
+    elif target_schema == 'imdb_ijs':
+        from imdb_movies_constants import top_250_movies, bottom_100_movies
+        movies = tables['movies'].copy()
+        positive_df = pd.DataFrame(top_250_movies, columns=["name", "year", "label"])
+        negative_df = pd.DataFrame(bottom_100_movies, columns=["name", "year", "label"])
+        result_df = pd.concat([positive_df, negative_df], ignore_index=True)
+        result_df["year"] = result_df["year"].astype(int)
+        result_with_original_data = movies.merge(result_df, on=["name", "year"], how="inner")
+        movies = result_with_original_data[["id", "name", "year", "label"]]
+        tables["movies"] = movies.copy()
+    return tables

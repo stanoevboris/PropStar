@@ -1,7 +1,10 @@
 import os
+import time
 import argparse
 import csv
 import numpy as np
+import pandas as pd
+from collections import Counter
 
 import logging
 
@@ -14,7 +17,7 @@ from propositionalization import (get_data,
                                   generate_relational_words,
                                   generate_custom_relational_words)
 from classification import *
-from utils import save_results
+from utils import save_results, preprocess_tables
 
 logging.basicConfig(format='%(asctime)s - %(message)s',
                     datefmt='%d-%b-%y %H:%M:%S')
@@ -53,7 +56,8 @@ classifier_func = {
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--learner", default="random_forest_learner")
+    parser.add_argument("--learner", default="extra_tree_learner")
+    parser.add_argument('--folds', type=int, default=5)
     parser.add_argument("--learning_rate",
                         default=0.001,
                         type=float,
@@ -75,7 +79,7 @@ if __name__ == "__main__":
                         type=int,
                         help="Embedding dimension")
     parser.add_argument("--negative_samples_limit",
-                        default=10,
+                        default=5,
                         type=int,
                         help="Max number of negative samples")
     parser.add_argument(
@@ -116,32 +120,35 @@ if __name__ == "__main__":
         "patterns)"
     )
     args = parser.parse_args()
+    args_dict = vars(args)
 
     grid_dict = {
+        # TODO add folds here
         "DRM": {'learner': args.learner, 'epochs': args.epochs, 'learning_rate': args.learning_rate,
                 'hidden_size': args.hidden_size,
                 'dropout': args.dropout, 'representation_type': args.representation_type,
-                'num_features': args.num_features},
+                'dataset': 'none', 'folds': args.folds, 'num_features': args.num_features},
         "starspace": {'learner': args.learner, 'epochs': args.epochs, 'learning_rate': args.learning_rate,
                       'negative_samples_limit': args.negative_samples_limit, 'hidden_size': args.hidden_size,
                       'negative_search_limit': args.negative_search_limit,
-                      'representation_type': args.representation_type,
-                      'num_features': args.num_features},
+                      'dataset': 'none', 'folds': args.folds, 'num_features': args.num_features},
         "svm_learner": {'learner': args.learner, 'epochs': args.epochs, 'representation_type': args.representation_type,
                         'kernel': args.kernel,
                         'C': args.C, 'gamma': args.gamma},
         "extra_tree_learner": {'learner': args.learner, 'epochs': args.epochs,
                                'representation_type': args.representation_type,
-                               'n_estimators': args.n_estimators},
+                               'n_estimators': args.n_estimators,
+                               'dataset': 'none', 'folds': args.folds},
         "random_forest_learner": {'learner': args.learner, 'epochs': args.epochs,
                                   'representation_type': args.representation_type,
-                                  'n_estimators': args.n_estimators},
+                                  'n_estimators': args.n_estimators, 'dataset': 'none', 'folds': args.folds},
         "ada_boost_learner": {'learner': args.learner, 'epochs': args.epochs,
                               'representation_type': args.representation_type,
-                              'n_estimators': args.n_estimators},
+                              'n_estimators': args.n_estimators, 'dataset': 'none', 'folds': args.folds},
         "gradient_boost_learner": {'learner': args.learner, 'epochs': args.epochs,
                                    'representation_type': args.representation_type,
-                                   'n_estimators': args.n_estimators, 'learning_rate': args.learning_rate}
+                                   'n_estimators': args.n_estimators, 'learning_rate': args.learning_rate,
+                                   'dataset': 'none', 'folds': args.folds}
     }
 
     variable_types_file = open(
@@ -151,7 +158,6 @@ if __name__ == "__main__":
     ]
     variable_types_file.close()
     learner = args.learner
-    import os
 
     # IMPORTANT: a tmp folder must be possible to construct, as the intermediary embeddings are stored here.
     directory = "tmp"
@@ -164,10 +170,9 @@ if __name__ == "__main__":
         lines = f.readlines()
         for line in lines:
             if line.strip()[0] != "#":
+                start_time = time.time()
+
                 line = line.strip().split()
-                # example_sql = "./sql_data/" + line[0]
-                # target_table = line[1]
-                # target_attribute = line[2]
                 sql_type = line[0]
                 target_schema = line[1]
                 target_table = line[2]
@@ -176,9 +181,9 @@ if __name__ == "__main__":
                 logging.info("Running for dataset: " + target_schema +
                              ", target_table: " + target_table +
                              ", target_attribute " + target_attribute)
-
+                args_dict['dataset'] = target_schema
                 tables, primary_keys, fkg = get_data(sql_type=sql_type, target_schema=target_schema)
-
+                tables = preprocess_tables(target_schema=target_schema, tables=tables)
                 accuracy_scores = []
                 f1_scores = []
                 roc_auc_scores = []
@@ -187,7 +192,7 @@ if __name__ == "__main__":
                     grid_dict[args.learner], target_attribute))
                 split_gen = preprocess_and_split(
                     tables[target_table],
-                    num_fold=2,
+                    num_fold=args.folds,
                     target_attribute=target_attribute)
                 for train_index, test_index in split_gen:
                     generate_relational_words_func = feature_func[args.representation_type]
@@ -213,6 +218,35 @@ if __name__ == "__main__":
                         num_features=args.num_features,
                         primary_keys=primary_keys)
 
+                    if args.representation_type == 'woe':
+                        logging.info(f"Dataset number of records:{len(train_features) + len(test_features)}")
+                        logging.info(f"Train set number of features:{len(train_features.columns.values)}")
+                        logging.info(f"Test set number of features:{len(test_features.columns.values)}")
+                    else:
+                        logging.info(f"Dataset number of records:{train_features.shape[0] + test_features.shape[0]}")
+                        logging.info(f"Train set number of features:{train_features.shape[1]}")
+                        logging.info(f"Test set number of features:{test_features.shape[1]}")
+
+                    if args.representation_type == 'woe':
+                        all_values = list(train_classes.values()) + list(test_classes.values())
+                        occurrences = dict(Counter(all_values))
+                        total_count = sum(occurrences.values())
+                        normalized_occurrences = {value: count / total_count for value, count in occurrences.items()}
+                        labels_occurrence_percentage = next(iter(normalized_occurrences.values()))
+                        grid_dict[args.learner]['labels_occurrence_percentage'] = labels_occurrence_percentage
+
+                    else:
+                        print(type(train_classes))
+                        all_values = np.concatenate((train_classes, test_classes))
+                        # occurrences = all_values.value_counts().sort_index()
+                        # normalized_occurrences = occurrences / occurrences.sum()
+                        unique_values, values_frequency = np.unique(all_values,
+                                                                    return_counts=True)
+                        total_sum = np.sum(values_frequency)
+                        positive_class_value = values_frequency[0] / total_sum
+
+                        grid_dict[args.learner]['labels_occurrence_percentage'] = positive_class_value
+
                     classify_func = classifier_func[args.learner][args.representation_type]
                     try:
                         acc, f1_score, auc_roc, custom_roc_auc = classify_func(args=args,
@@ -226,6 +260,11 @@ if __name__ == "__main__":
                     f1_scores.append(f1_score)
                     roc_auc_scores.append(auc_roc)
                     custom_roc_auc_scores.append(custom_roc_auc)
+
+                    end_time = time.time()
+                    execution_time = end_time - start_time
+                    logging.info(f"Execution time: {execution_time:.4f} seconds")
+                    grid_dict[args.learner]['total_execution_time'] = f"{execution_time:.4f}"
                 scores = {'acc': accuracy_scores,
                           'f1': f1_scores,
                           'roc_auc': roc_auc_scores,

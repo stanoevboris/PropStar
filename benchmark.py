@@ -123,7 +123,6 @@ if __name__ == "__main__":
     args_dict = vars(args)
 
     grid_dict = {
-        # TODO add folds here
         "DRM": {'learner': args.learner, 'epochs': args.epochs, 'learning_rate': args.learning_rate,
                 'hidden_size': args.hidden_size,
                 'dropout': args.dropout, 'representation_type': args.representation_type,

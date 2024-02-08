@@ -1,4 +1,6 @@
 import itertools
+from typing import Optional
+
 import pandas as pd
 import networkx as nx
 from sklearn.feature_extraction.text import TfidfVectorizer, HashingVectorizer
@@ -24,24 +26,40 @@ sql_type_dict = {
 }
 
 
-def get_data(sql_type: str, target_schema: str):
-    mssql_db_object = sql_type_dict[sql_type]
-    mssql_db = mssql_db_object(target_schema)
-    engine = sa.create_engine(mssql_db.connection_url, echo=True)
-    with engine.connect() as connection:
-        tables = sa.inspect(engine).get_table_names(schema=target_schema)
-        logging.info(f"Total tables read from the given schema {len(tables)}")
-        logging.info(f"Tables read: {tables}")
-        tables_dict = {}
-        for table in tables:
-            tables_dict[table] = mssql_db.get_table(table_name=table, connection=connection)
-        pks = pd.read_sql(sa.text(mssql_db.get_primary_keys()), connection)
-        fks = pd.read_sql(sa.text(mssql_db.get_foreign_keys()), connection)
+def get_data(sql_type: str, database: Optional[str], target_schema: str, include_all_schemas: Optional[bool]):
+    db_object = sql_type_dict[sql_type]
 
-        # Conversion for PKs and FKs in order to match the source code format of the variables
-        pks_dict = dict(zip(pks['TableName'], pks['PrimaryKeyColumn']))
-        fk_graph = fks[['ChildTable', 'ChildColumn', 'ReferencedTable', 'ReferencedColumn']].values.tolist()
-        return tables_dict, pks_dict, fk_graph
+    kwargs = {
+        "target_schema": target_schema
+    }
+
+    if sql_type == "mssql":
+        kwargs["database"] = database
+        kwargs["include_all_schemas"] = include_all_schemas
+
+    db = db_object(**kwargs)
+    engine = sa.create_engine(db.connection_url, echo=True)
+    tables_dict = {}
+    with engine.connect() as connection:
+        schemas = [target_schema] if not include_all_schemas else sa.inspect(engine).get_schema_names()
+
+        for schema in schemas:
+            tables = sa.inspect(engine).get_table_names(schema=schema)
+            for table in tables:
+                tables_dict[table] = db.get_table(schema=schema,
+                                                  table_name=table,
+                                                  connection=connection)
+
+        logging.info(f"Total tables read: {len(tables_dict)}")
+        logging.info(f"Tables read: {list(tables_dict.keys())}")
+
+        pks = pd.read_sql(sa.text(db.get_primary_keys()), connection)
+        fks = pd.read_sql(sa.text(db.get_foreign_keys()), connection)
+
+    # Conversion for PKs and FKs in order to match the source code format of the variables
+    pks_dict = dict(zip(pks['TableName'], pks['PrimaryKeyColumn']))
+    fk_graph = fks[['ChildTable', 'ChildColumn', 'ReferencedTable', 'ReferencedColumn']].values.tolist()
+    return tables_dict, pks_dict, fk_graph
 
 
 def get_table_keys(quadruplet):

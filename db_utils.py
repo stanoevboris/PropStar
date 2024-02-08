@@ -1,3 +1,5 @@
+from typing import Optional
+
 from sqlalchemy import engine
 from conf import *
 from abc import ABC, abstractmethod
@@ -8,7 +10,7 @@ from sqlalchemy_utils import database_exists, create_database
 
 
 def create_connection(database_name: str):
-    mssql_db = MSSQLDatabase(database_name)
+    mssql_db = MSSQLDatabase(target_schema=database_name)
     engine = create_engine(mssql_db.connection_url, echo=True)
     if not database_exists(engine.url):
         create_database(engine.url)
@@ -19,7 +21,7 @@ def create_connection(database_name: str):
 class Database(ABC):
 
     @abstractmethod
-    def get_table(self, table_name: str, connection):
+    def get_table(self, schema: Optional[str], table_name: str, connection):
         pass
 
     @abstractmethod
@@ -33,15 +35,16 @@ class Database(ABC):
 
 class MSSQLDatabase(Database):
 
-    def __init__(self, target_schema: str):
+    def __init__(self, target_schema: str, database: Optional[str] = None, include_all_schemas: bool = False):
         self.username = MSSQL_READ_USER
         self.password = MSSQL_READ_PASS
         self.host = MSSQL_HOST
         self.port = MSSQL_PORT
-        self.database = MSSQL_DEFAULT_DB
         self.query = MSSQL_QUERY
 
+        self.database = database
         self.target_schema = target_schema
+        self.include_all_schemas = include_all_schemas
 
         self.connection_url = engine.URL.create(
             MSSQL_DBAPI,
@@ -53,36 +56,44 @@ class MSSQLDatabase(Database):
             query=self.query
         )
 
-    def get_table(self, table_name: str, connection):
-        df = pd.read_sql(f"SELECT * FROM {self.target_schema}.{table_name}", connection)
+    def get_table(self, schema: Optional[str], table_name: str, connection):
+        if schema:
+            df = pd.read_sql(f"SELECT * FROM {schema}.{table_name}", connection)
+        else:
+            df = pd.read_sql(f"SELECT * FROM {self.target_schema}.{table_name}", connection)
         return df
 
     def get_primary_keys(self):
-        return f"""SELECT
-                        t.name AS TableName,
-                        c.name AS PrimaryKeyColumn
-                    FROM
-                        sys.tables AS t
-                    INNER JOIN
-                        sys.indexes AS i
-                    ON
-                        t.object_id = i.object_id
-                    INNER JOIN
-                        sys.index_columns AS ic
-                    ON
-                        i.object_id = ic.object_id
-                        AND i.index_id = ic.index_id
-                    INNER JOIN
-                        sys.columns AS c
-                    ON
-                        ic.object_id = c.object_id
-                        AND ic.column_id = c.column_id
-                    WHERE
-                        t.schema_id = SCHEMA_ID('{self.target_schema}')
-                        AND i.is_primary_key = 1;"""
+        query = f"""SELECT
+                            t.name AS TableName,
+                            c.name AS PrimaryKeyColumn
+                        FROM
+                            sys.tables AS t
+                        INNER JOIN
+                            sys.indexes AS i
+                        ON
+                            t.object_id = i.object_id
+                        INNER JOIN
+                            sys.index_columns AS ic
+                        ON
+                            i.object_id = ic.object_id
+                            AND i.index_id = ic.index_id
+                        INNER JOIN
+                            sys.columns AS c
+                        ON
+                            ic.object_id = c.object_id
+                            AND ic.column_id = c.column_id
+                        WHERE
+                            i.is_primary_key = 1"""
+
+        if not self.include_all_schemas:
+            schema_filter = f" AND t.schema_id = SCHEMA_ID('{self.target_schema}')"
+            query += schema_filter
+
+        return query + ";"
 
     def get_foreign_keys(self):
-        return f""" SELECT   
+        query = f""" SELECT   
                         fk.name AS ForeignKeyName,
                         OBJECT_NAME(fkc.parent_object_id) AS ChildTable,
                         COL_NAME(fkc.parent_object_id, fkc.parent_column_id) AS ChildColumn,
@@ -95,8 +106,14 @@ class MSSQLDatabase(Database):
                     ON
                         fk.object_id = fkc.constraint_object_id
                     WHERE
-                        OBJECT_SCHEMA_NAME(fkc.parent_object_id) = '{self.target_schema}'
-                        AND OBJECT_SCHEMA_NAME(fkc.referenced_object_id) = '{self.target_schema}';"""
+                        1 = 1"""
+
+        if not self.include_all_schemas:
+            schema_filter = f" AND OBJECT_SCHEMA_NAME(fkc.parent_object_id) = '{self.target_schema}'" \
+                            f"AND OBJECT_SCHEMA_NAME(fkc.referenced_object_id) = '{self.target_schema}'"""
+            query += schema_filter
+
+        return query + ";"
 
 
 class MYSQLDatabase(Database):
@@ -122,7 +139,7 @@ class MYSQLDatabase(Database):
             database=self.database
         )
 
-    def get_table(self, table_name: str, connection):
+    def get_table(self, schema: Optional[str], table_name: str, connection):
         df = pd.read_sql(f"SELECT * FROM {self.target_schema}.{table_name}", connection)
         return df
 

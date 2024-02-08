@@ -1,18 +1,8 @@
-import os
-import time
+import json
 import argparse
-import csv
-import numpy as np
-import pandas as pd
+
 from collections import Counter
 
-import logging
-
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.metrics import roc_auc_score
-from sklearn import preprocessing
-
-from learning import preprocess_and_split
 from propositionalization import (get_data,
                                   generate_relational_words,
                                   generate_custom_relational_words)
@@ -86,37 +76,31 @@ if __name__ == "__main__":
         "--negative_search_limit",
         default=10,
         type=int,
-        help=
-        "Negative search limit (see starspace docs for extensive description)")
+        help="Negative search limit (see starspace docs for extensive description)")
     parser.add_argument(
         "--n_estimators",
         default=16,
         type=int,
-        help=
-        "No. of estimators used mainly for traditional classifiers")
+        help="No. of estimators used mainly for traditional classifiers")
     parser.add_argument(
         "--kernel",
         default='linear',
         type=str,
-        help=
-        "Kernel used for SVC")
+        help="Kernel used for SVC")
     parser.add_argument(
         "--C",
         default=1,
         type=int,
-        help=
-        "Regularization parameter for SVC")
+        help="Regularization parameter for SVC")
     parser.add_argument(
         "--gamma",
         default='scale',
-        help=
-        "Kernel coefficient for kernel with value ‘rbf’, used in SVC")
+        help="Kernel coefficient for kernel with value ‘rbf’, used in SVC")
     parser.add_argument(
         "--representation_type",
         default="woe",
         type=str,
-        help=
-        "Type of representation and weighting. tfidf or binary, also supports scikit's implementations (ordered "
+        help="Type of representation and weighting. tfidf or binary, also supports scikit's implementations (ordered "
         "patterns)"
     )
     args = parser.parse_args()
@@ -164,109 +148,114 @@ if __name__ == "__main__":
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-    # Traverse the data set space
-    with open('datasets.txt') as f:
-        lines = f.readlines()
-        for line in lines:
-            if line.strip()[0] != "#":
-                start_time = time.time()
+    with open('datasets.json', 'r') as f:
+        config = json.load(f)
 
-                line = line.strip().split()
-                sql_type = line[0]
-                target_schema = line[1]
-                target_table = line[2]
-                target_attribute = line[3]
+    for dataset in config['datasets']:
+        if not dataset.get('enabled', True):
+            continue
+        start_time = time.time()
 
-                logging.info("Running for dataset: " + target_schema +
-                             ", target_table: " + target_table +
-                             ", target_attribute " + target_attribute)
-                args_dict['dataset'] = target_schema
-                tables, primary_keys, fkg = get_data(sql_type=sql_type, target_schema=target_schema)
-                tables = preprocess_tables(target_schema=target_schema, tables=tables)
-                accuracy_scores = []
-                f1_scores = []
-                roc_auc_scores = []
-                custom_roc_auc_scores = []
-                logging.info("Evaluation of {} - {}".format(
-                    grid_dict[args.learner], target_attribute))
-                split_gen = preprocess_and_split(
-                    tables[target_table],
-                    num_fold=args.folds,
-                    target_attribute=target_attribute)
-                for train_index, test_index in split_gen:
-                    generate_relational_words_func = feature_func[args.representation_type]
-                    train_features, train_classes, vectorizer = generate_relational_words_func(
-                        tables,
-                        fkg,
-                        target_table,
-                        target_attribute,
-                        relation_order=(1, 1),
-                        indices=train_index,
-                        vectorization_type=args.representation_type,
-                        num_features=args.num_features,
-                        primary_keys=primary_keys)
-                    test_features, test_classes = generate_relational_words_func(
-                        tables,
-                        fkg,
-                        target_table,
-                        target_attribute,
-                        relation_order=(1, 1),
-                        vectorizer=vectorizer,
-                        indices=test_index,
-                        vectorization_type=args.representation_type,
-                        num_features=args.num_features,
-                        primary_keys=primary_keys)
+        sql_type = dataset['sql_type']
+        database = dataset['database']
+        target_schema = dataset['target_schema']
+        target_table = dataset['target_table']
+        target_attribute = dataset['target_column']
+        include_all_schemas = dataset['include_all_schemas']
 
-                    if args.representation_type == 'woe':
-                        logging.info(f"Dataset number of records:{len(train_features) + len(test_features)}")
-                        logging.info(f"Train set number of features:{len(train_features.columns.values)}")
-                        logging.info(f"Test set number of features:{len(test_features.columns.values)}")
-                    else:
-                        logging.info(f"Dataset number of records:{train_features.shape[0] + test_features.shape[0]}")
-                        logging.info(f"Train set number of features:{train_features.shape[1]}")
-                        logging.info(f"Test set number of features:{test_features.shape[1]}")
+        logging.info("Running for dataset: " + target_schema +
+                     ", target_table: " + target_table +
+                     ", target_attribute " + target_attribute)
+        args_dict['dataset'] = target_schema
+        tables, primary_keys, fkg = get_data(sql_type=sql_type,
+                                             database=database,
+                                             target_schema=target_schema,
+                                             include_all_schemas=include_all_schemas)
+        tables = preprocess_tables(target_schema=target_schema, tables=tables)
+        accuracy_scores = []
+        f1_scores = []
+        roc_auc_scores = []
+        custom_roc_auc_scores = []
+        logging.info("Evaluation of {} - {}".format(
+            grid_dict[args.learner], target_attribute))
+        split_gen = preprocess_and_split(
+            tables[target_table],
+            num_fold=args.folds,
+            target_attribute=target_attribute)
+        for train_index, test_index in split_gen:
+            generate_relational_words_func = feature_func[args.representation_type]
+            train_features, train_classes, vectorizer = generate_relational_words_func(
+                tables,
+                fkg,
+                target_table,
+                target_attribute,
+                relation_order=(1, 1),
+                indices=train_index,
+                vectorization_type=args.representation_type,
+                num_features=args.num_features,
+                primary_keys=primary_keys)
+            test_features, test_classes = generate_relational_words_func(
+                tables,
+                fkg,
+                target_table,
+                target_attribute,
+                relation_order=(1, 1),
+                vectorizer=vectorizer,
+                indices=test_index,
+                vectorization_type=args.representation_type,
+                num_features=args.num_features,
+                primary_keys=primary_keys)
 
-                    if args.representation_type == 'woe':
-                        all_values = list(train_classes.values()) + list(test_classes.values())
-                        occurrences = dict(Counter(all_values))
-                        total_count = sum(occurrences.values())
-                        normalized_occurrences = {value: count / total_count for value, count in occurrences.items()}
-                        labels_occurrence_percentage = next(iter(normalized_occurrences.values()))
-                        grid_dict[args.learner]['labels_occurrence_percentage'] = labels_occurrence_percentage
+            if args.representation_type == 'woe':
+                logging.info(f"Dataset number of records:{len(train_features) + len(test_features)}")
+                logging.info(f"Train set number of features:{len(train_features.columns.values)}")
+                logging.info(f"Test set number of features:{len(test_features.columns.values)}")
+            else:
+                logging.info(f"Dataset number of records:{train_features.shape[0] + test_features.shape[0]}")
+                logging.info(f"Train set number of features:{train_features.shape[1]}")
+                logging.info(f"Test set number of features:{test_features.shape[1]}")
 
-                    else:
-                        print(type(train_classes))
-                        all_values = np.concatenate((train_classes, test_classes))
-                        # occurrences = all_values.value_counts().sort_index()
-                        # normalized_occurrences = occurrences / occurrences.sum()
-                        unique_values, values_frequency = np.unique(all_values,
-                                                                    return_counts=True)
-                        total_sum = np.sum(values_frequency)
-                        positive_class_value = values_frequency[0] / total_sum
+            if args.representation_type == 'woe':
+                all_values = list(train_classes.values()) + list(test_classes.values())
+                occurrences = dict(Counter(all_values))
+                total_count = sum(occurrences.values())
+                normalized_occurrences = {value: count / total_count for value, count in occurrences.items()}
+                labels_occurrence_percentage = next(iter(normalized_occurrences.values()))
+                grid_dict[args.learner]['labels_occurrence_percentage'] = labels_occurrence_percentage
 
-                        grid_dict[args.learner]['labels_occurrence_percentage'] = positive_class_value
+            else:
+                print(type(train_classes))
+                all_values = np.concatenate((train_classes, test_classes))
+                # occurrences = all_values.value_counts().sort_index()
+                # normalized_occurrences = occurrences / occurrences.sum()
+                unique_values, values_frequency = np.unique(all_values,
+                                                            return_counts=True)
+                total_sum = np.sum(values_frequency)
+                positive_class_value = values_frequency[0] / total_sum
 
-                    classify_func = classifier_func[args.learner][args.representation_type]
-                    try:
-                        acc, f1_score, auc_roc, custom_roc_auc = classify_func(args=args,
-                                                                               train_features=train_features,
-                                                                               train_classes=train_classes,
-                                                                               test_features=test_features,
-                                                                               test_classes=test_classes)
-                    except Exception as es:
-                        print(es)
-                    accuracy_scores.append(acc)
-                    f1_scores.append(f1_score)
-                    roc_auc_scores.append(auc_roc)
-                    custom_roc_auc_scores.append(custom_roc_auc)
+                grid_dict[args.learner]['labels_occurrence_percentage'] = positive_class_value
 
-                    end_time = time.time()
-                    execution_time = end_time - start_time
-                    logging.info(f"Execution time: {execution_time:.4f} seconds")
-                    grid_dict[args.learner]['total_execution_time'] = f"{execution_time:.4f}"
-                scores = {'acc': accuracy_scores,
-                          'f1': f1_scores,
-                          'roc_auc': roc_auc_scores,
-                          'custom_roc_auc': custom_roc_auc_scores}
-                save_results(args=args, dataset=target_schema, scores=scores,
-                             grid_dict=grid_dict[args.learner])
+            classify_func = classifier_func[args.learner][args.representation_type]
+            try:
+                acc, f1_score, auc_roc, custom_roc_auc = classify_func(args=args,
+                                                                       train_features=train_features,
+                                                                       train_classes=train_classes,
+                                                                       test_features=test_features,
+                                                                       test_classes=test_classes)
+            except Exception as es:
+                print(es)
+            accuracy_scores.append(acc)
+            f1_scores.append(f1_score)
+            roc_auc_scores.append(auc_roc)
+            custom_roc_auc_scores.append(custom_roc_auc)
+
+            end_time = time.time()
+            execution_time = end_time - start_time
+            logging.info(f"Execution time: {execution_time:.4f} seconds")
+            grid_dict[args.learner]['total_execution_time'] = f"{execution_time:.4f}"
+        scores = {'acc': accuracy_scores,
+                  'f1': f1_scores,
+                  'roc_auc': roc_auc_scores,
+                  'custom_roc_auc': custom_roc_auc_scores}
+        save_results(args=args, dataset=target_schema, scores=scores,
+                     grid_dict=grid_dict[args.learner])

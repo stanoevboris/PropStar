@@ -7,7 +7,7 @@
       "target_table": "target",
       "target_column": "class",
       "include_all_schemas": false,
-"enabled": true
+      "enabled": true
     },
     {
       "sql_type": "mssql",

@@ -114,8 +114,17 @@ def save_results(args, dataset, scores, grid_dict):
         writer.writerow(data_dict)
 
 
+def clean_dataframes(tables: dict):
+    for table_name, df in tables.items():
+        # remove all columns with null values percentage above 80%
+        tables[table_name] = df.loc[:, df.isnull().mean() < .8]
+
+    return tables
+
+
 def preprocess_tables(target_schema: str, tables: dict) -> dict:
-    if target_schema == 'AdventureWorks2014':
+    tables = clean_dataframes(tables=tables)
+    if target_schema == 'Sales':
         soh = tables['SalesOrderHeader'].copy()
         soh['previous_order_date'] = soh.groupby('CustomerID')['OrderDate'].shift(1)
         soh['days_without_order'] = (soh['OrderDate'] - soh['previous_order_date']).dt.days.fillna(0)

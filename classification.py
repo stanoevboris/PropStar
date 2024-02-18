@@ -153,10 +153,10 @@ def prop_drm_woe_classification(args, train_features, train_classes, test_featur
     if len(test_classes) != len(test_features.index):
         test_classes = {key: test_classes[key] for key in test_classes.keys() if key in test_features.index}
     test_classes_encoded = encoder.transform(list(test_classes.values()))
-    model = E2EDNN(num_epochs=args.epochs,
-                   learning_rate=args.learning_rate,
-                   hidden_layer_size=args.hidden_size,
-                   dropout=args.dropout)
+    model = E2EDNNTF(num_epochs=args.epochs,
+                     learning_rate=args.learning_rate,
+                     hidden_layer_size=args.hidden_size,
+                     dropout=args.dropout)
 
     # standard fit predict
     model.fit(train_x, train_y)

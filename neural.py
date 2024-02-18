@@ -1,8 +1,13 @@
 """
 The code containing neural network part, Skrlj 2019
 """
+import tensorflow as tf
+from keras import Sequential
+from keras.layers import Dense, Dropout
+from keras.optimizers import Adam
 
 import torch
+
 torch.manual_seed(123321)
 import tqdm
 import torch.nn as nn
@@ -10,6 +15,7 @@ from sklearn.preprocessing import OneHotEncoder
 from torch.utils.data import DataLoader, Dataset
 import logging
 import numpy as np
+
 np.random.seed(123321)
 
 logging.basicConfig(format='%(asctime)s - %(message)s',
@@ -21,6 +27,7 @@ class E2EDatasetLoader(Dataset):
     """
     A standard dataloader instance, note the csr subsetting.
     """
+
     def __init__(self, features, targets=None, transform=None):
         self.features = features.tocsr()
 
@@ -94,6 +101,7 @@ class E2EDNN:
     """
     This is the main DRM class. The idea is to have a scikit-learn like interface for construction of ffNNs, capable of handling CSR-like inputs.
     """
+
     def __init__(self,
                  batch_size=8,
                  num_epochs=10,
@@ -206,3 +214,57 @@ class E2EDNN:
                 predictions.append(pred)
         a = [a_[1] for a_ in predictions]
         return np.array(a).flatten()
+
+
+class SimpleArchTF:
+    """
+    Simple architecture Tensorflow wrapper that replicates the original PyTorch version using a simple sequential 
+    layer setup
+    """
+
+    def __init__(self, input_size, dropout=0.1, hidden_layer_size=10, output_neurons=1):
+        self.model = Sequential([
+            Dense(hidden_layer_size, activation='elu', input_shape=(input_size,)),
+            Dropout(dropout),
+            Dense(hidden_layer_size, activation='elu'),
+            Dropout(dropout),
+            Dense(16, activation='elu'),
+            Dropout(dropout),
+            Dense(output_neurons, activation='sigmoid')
+        ])
+
+
+class E2EDNNTF:
+    def __init__(self, batch_size=8, num_epochs=10, learning_rate=0.0001, dropout=0.1, hidden_layer_size=10,
+                 output_neurons=1):
+        self.model = None
+        self.batch_size = batch_size
+        self.num_epochs = num_epochs
+        self.learning_rate = learning_rate
+        self.dropout = dropout
+        self.hidden_layer_size = hidden_layer_size
+        self.output_neurons = output_neurons
+
+    def create_dataset(self, features, labels=None):
+        if labels is not None:
+            dataset = tf.data.Dataset.from_tensor_slices((features, labels))
+        else:
+            dataset = tf.data.Dataset.from_tensor_slices(features)
+        dataset = dataset.batch(self.batch_size)
+        return dataset
+
+    def fit(self, features, labels):
+        self.model = SimpleArchTF(features.shape[1], self.dropout, self.hidden_layer_size, self.output_neurons).model
+        self.model.compile(optimizer=Adam(learning_rate=self.learning_rate),
+                           loss='binary_crossentropy',
+                           metrics=['accuracy'])
+        
+        dataset = self.create_dataset(features, labels)
+        self.model.fit(dataset, epochs=self.num_epochs)
+
+    def predict(self, features, return_proba=False):
+        predictions = self.model.predict(features)
+        if return_proba:
+            return predictions
+        else:
+            return np.argmax(predictions, axis=1)

@@ -204,5 +204,3 @@ class starspaceLearner:
             return np.array([int(x) for x in els])
         else:
             return els
-
-# TODO: create class for each classifier

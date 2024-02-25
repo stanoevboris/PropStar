@@ -46,7 +46,7 @@ classifier_func = {
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--learner", default="extra_tree_learner")
+    parser.add_argument("--learner", default="DRM")
     parser.add_argument('--folds', type=int, default=5)
     parser.add_argument("--learning_rate",
                         default=0.001,
@@ -114,7 +114,8 @@ if __name__ == "__main__":
         "starspace": {'learner': args.learner, 'epochs': args.epochs, 'learning_rate': args.learning_rate,
                       'negative_samples_limit': args.negative_samples_limit, 'hidden_size': args.hidden_size,
                       'negative_search_limit': args.negative_search_limit,
-                      'dataset': 'none', 'folds': args.folds, 'num_features': args.num_features},
+                      'dataset': 'none', 'folds': args.folds, 'num_features': args.num_features,
+                      'representation_type': args.representation_type},
         "svm_learner": {'learner': args.learner, 'epochs': args.epochs, 'representation_type': args.representation_type,
                         'kernel': args.kernel,
                         'C': args.C, 'gamma': args.gamma},

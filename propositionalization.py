@@ -8,7 +8,7 @@ from neural import *  # DRMs
 from learning import *  # starspace
 from utils import OrderedDictList
 from vectorizers import *
-from fe_numerical.woe import WOEEncoder
+from woe import WOEEncoder
 
 import logging
 import sqlalchemy as sa

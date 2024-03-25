@@ -1,15 +1,13 @@
-"""
-The code containing neural network part, Skrlj 2019
-"""
-
 import torch
+
 torch.manual_seed(123321)
-import tqdm
 import torch.nn as nn
 from sklearn.preprocessing import OneHotEncoder
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import Dataset
 import logging
 import numpy as np
+import pandas as pd
+
 np.random.seed(123321)
 
 logging.basicConfig(format='%(asctime)s - %(message)s',
@@ -19,13 +17,28 @@ logging.getLogger().setLevel(logging.INFO)
 
 class E2EDatasetLoader(Dataset):
     """
-    A standard dataloader instance, note the csr subsetting.
+    A dataloader that can accept both csr matrices and pandas DataFrame instances.
+    Automatically detects and converts DataFrame to tensors.
     """
-    def __init__(self, features, targets=None, transform=None):
-        self.features = features.tocsr()
 
-        if not targets is None:
-            self.targets = targets.tocsr()
+    def __init__(self, features, targets=None):
+        if isinstance(features, pd.DataFrame):
+            # cast all object cols to numeric ones
+            features = features.apply(pd.to_numeric, errors='ignore')
+
+            # Convert DataFrame features to tensor
+            self.features = torch.tensor(features.values, dtype=torch.float64)
+        else:
+            # Handle csr matrix
+            self.features = features.tocsr()
+
+        if targets is not None:
+            if isinstance(targets, np.ndarray):
+                # Convert Numpy targets to tensor, assuming targets are numeric
+                self.targets = torch.tensor(targets, dtype=torch.float32).view(-1, 1)
+            else:
+                # Handle csr matrix
+                self.targets = targets.tocsr()
         else:
             self.targets = targets
 
@@ -33,11 +46,19 @@ class E2EDatasetLoader(Dataset):
         return self.features.shape[0]
 
     def __getitem__(self, index):
-        instance = torch.from_numpy(self.features[index, :].todense())
+        if isinstance(self.features, torch.Tensor):
+            instance = self.features[index]
+        else:  # For csr matrix
+            instance = torch.from_numpy(self.features[index, :].todense()).float()
+
         if self.targets is not None:
-            target = torch.from_numpy(self.targets[index].todense())
+            if isinstance(self.targets, torch.Tensor):
+                target = self.targets[index]
+            else:  # For csr matrix
+                target = torch.from_numpy(self.targets[index].todense()).float()
         else:
             target = None
+
         return instance, target
 
 
@@ -94,6 +115,7 @@ class E2EDNN:
     """
     This is the main DRM class. The idea is to have a scikit-learn like interface for construction of ffNNs, capable of handling CSR-like inputs.
     """
+
     def __init__(self,
                  batch_size=8,
                  num_epochs=10,
@@ -120,11 +142,8 @@ class E2EDNN:
         for p in model.parameters():
             init_func(p, *params, **kwargs)
 
-    def fit(self, features, labels, onehot=False):
-
-        nun = len(np.unique(labels))
-        logging.info("Found {} unique labels.".format(nun))
-        labels = to_one_hot(labels)
+    def fit(self, features, labels):
+        nun = 1  # this values one since all the experiments are for binary classification
         train_dataset = E2EDatasetLoader(features, labels)
         stopping_iteration = 0
         loss = 1
@@ -133,8 +152,6 @@ class E2EDNN:
                                 dropout=self.dropout,
                                 hidden_layer_size=self.hidden_layer_size,
                                 output_neurons=nun).to(self.device)
-        #        self.init_all(self.model, torch.nn.init.normal_, mean=0., std=1)
-        #        self.init_all(self.model, torch.nn.init.uniform_)
 
         self.optimizer = torch.optim.Adam(self.model.parameters(),
                                           lr=self.learning_rate)
@@ -143,7 +160,7 @@ class E2EDNN:
         logging.info("Starting training for {} epochs".format(self.num_epochs))
         for epoch in range(
                 self.num_epochs
-        ):  ## simple loss-based stopping works OK. TODO -> validation if more data is available.
+        ):
             if current_loss != loss:
                 current_loss = loss
             else:
@@ -179,16 +196,15 @@ class E2EDNN:
             for features, _ in test_dataset:
                 features = features.float().to(self.device)
                 representation = self.model.forward(features)
-                pred = representation.detach().cpu().numpy()[0]
-                predictions.append(pred)
-        if not return_proba:
-            a = [np.argmax(a_) for a_ in predictions]  ## assumes 0 is 0
-        else:
-            a = []
-            for pred in predictions:
-                a.append(pred[1])
+                pred = representation.detach().cpu().numpy().flatten()
+                if return_proba:
+                    predictions.extend(pred)
+                else:
+                    # Convert outputs to class labels
+                    predicted_classes = np.round(pred)
+                    predictions.extend(predicted_classes)
 
-        return np.array(a).flatten()
+        return predictions
 
     def predict_proba(self, features):
         """
@@ -202,7 +218,7 @@ class E2EDNN:
             for features, _ in test_dataset:
                 features = features.float().to(self.device)
                 representation = self.model.forward(features)
-                pred = representation.detach().cpu().numpy()[0]
+                pred = representation.detach().cpu().numpy().flatten()
                 predictions.append(pred)
         a = [a_[1] for a_ in predictions]
         return np.array(a).flatten()

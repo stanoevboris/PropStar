@@ -11,9 +11,12 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import ExtraTreesClassifier, AdaBoostClassifier, GradientBoostingClassifier, \
     RandomForestClassifier
 from sklearn import svm
+import xgboost as xgb
+import lightgbm as lgb
+from catboost import CatBoostClassifier
 from sklearn.metrics import accuracy_score, f1_score
 
-random_state = 0
+random_state = 42
 
 
 def preprocess_and_split(X, num_fold=10, target_attribute=None):
@@ -75,9 +78,31 @@ def ada_boost_learner(args, train_features, train_classes):
 
 def gradient_boost_learner(args, train_features, train_classes):
     clf = GradientBoostingClassifier(n_estimators=args.n_estimators,
+                                     learning_rate=args.learning_rate,
                                      random_state=random_state)
     clf.fit(train_features, train_classes)
 
+    return clf
+
+
+def xgboost_learner(args, train_features, train_classes):
+    clf = xgb.XGBClassifier(n_estimators=args.n_estimators, learning_rate=args.learning_rate, use_label_encoder=False,
+                            random_state=random_state)
+    clf.fit(train_features, train_classes)
+    return clf
+
+
+def lightgbm_learner(args, train_features, train_classes):
+    clf = lgb.LGBMClassifier(n_estimators=args.n_estimators, learning_rate=args.learning_rate,
+                             random_state=random_state)
+    clf.fit(train_features, train_classes)
+    return clf
+
+
+def catboost_learner(args, train_features, train_classes):
+    clf = CatBoostClassifier(iterations=args.n_estimators, learning_rate=args.learning_rate, depth=10,
+                             loss_function='Logloss', random_state=random_state, verbose=0)
+    clf.fit(train_features, train_classes)
     return clf
 
 

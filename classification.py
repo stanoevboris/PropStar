@@ -261,7 +261,11 @@ learners_dict = {"svm_learner": svm_learner,
                  "extra_tree_learner": extra_tree_learner,
                  "random_forest_learner": random_forest_learner,
                  "ada_boost_learner": ada_boost_learner,
-                 "gradient_boost_learner": gradient_boost_learner}
+                 "gradient_boost_learner": gradient_boost_learner,
+                 "xgboost_learner": xgboost_learner,
+                 "lightgbm_learner": lightgbm_learner,
+                 "catboost_learner": catboost_learner
+                 }
 
 
 def traditional_learner_tfidf_classification(args, train_features, train_classes, test_features, test_classes):

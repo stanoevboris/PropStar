@@ -96,9 +96,7 @@ def save_results(args, dataset, scores, grid_dict):
     results_dir_path = os.path.join(PROJECT_DIR, 'results')
     os.makedirs(results_dir_path, exist_ok=True)
 
-    dataset = dataset.split(".")[0]
-
-    learner_results_file_path = os.path.join(results_dir_path, f'{dataset}.csv')
+    learner_results_file_path = os.path.join(results_dir_path, args.results_file)
     args_dict = {arg: getattr(args, arg) if arg in grid_dict else '/' for arg in vars(args)}
     data_dict = args_dict | {'labels_occurrence_percentage': grid_dict.get('labels_occurrence_percentage'),
                              'total_execution_time': grid_dict.get('total_execution_time')}
@@ -139,12 +137,14 @@ def preprocess_tables(target_schema: str, tables: dict) -> dict:
                 return 1
 
         soh['churn'] = soh.apply(calculate_churn, axis=1)
+        # TODO: drop previous order date and days_without order
 
         # Reset the index
         soh = soh[soh['churn'].notna()]
         soh.reset_index(drop=True, inplace=True)
         soh['churn'] = soh['churn'].astype(np.int64)
         # soh['SalesPersonID'] = soh['churn'].astype(np.int64)
+        soh.drop(['previous_order_date', 'days_without_order'], axis=1, inplace=True)
 
         tables['SalesOrderHeader'] = soh.copy()
     elif target_schema == 'imdb_ijs':

@@ -4,7 +4,7 @@ from sqlalchemy import engine
 from conf import *
 from abc import ABC, abstractmethod
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 
 from sqlalchemy_utils import database_exists, create_database
 
@@ -58,9 +58,9 @@ class MSSQLDatabase(Database):
 
     def get_table(self, schema: Optional[str], table_name: str, connection):
         if schema:
-            df = pd.read_sql(f"SELECT * FROM {schema}.{table_name}", connection)
+            df = pd.read_sql(text(f"SELECT * FROM {schema}.{table_name}"), connection)
         else:
-            df = pd.read_sql(f"SELECT * FROM {self.target_schema}.{table_name}", connection)
+            df = pd.read_sql(text(f"SELECT * FROM {self.target_schema}.{table_name}"), connection)
         return df
 
     def get_primary_keys(self):
@@ -140,7 +140,7 @@ class MYSQLDatabase(Database):
         )
 
     def get_table(self, schema: Optional[str], table_name: str, connection):
-        df = pd.read_sql(f"SELECT * FROM {self.target_schema}.{table_name}", connection)
+        df = pd.read_sql(text(f"SELECT * FROM {self.target_schema}.{table_name}"), connection)
         return df
 
     def get_primary_keys(self):

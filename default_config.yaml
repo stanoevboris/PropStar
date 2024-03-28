@@ -1,0 +1,16 @@
+classifiers:
+  - name: random_forest_learner
+    params:
+      - n_estimators: [ 100, 200]
+        max_depth: [ null]
+        min_samples_split: [ 2]
+        min_samples_leaf: [ 1]
+        representation_type: ["woe", "sklearn_tfidf"]
+
+  - name: extra_tree_learner
+    params:
+      - n_estimators: [ 100, 300 ]
+        max_depth: [ null, 10 ]
+        min_samples_split: [ 2 ]
+        min_samples_leaf: [ 1, 2 ]
+        representation_type: ["woe", "sklearn_tfidf"]

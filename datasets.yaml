@@ -85,7 +85,7 @@ datasets:
     target_table: drugs
     target_column: active
     include_all_schemas: false
-    enabled: false
+    enabled: true
 
   - sql_type: mysql
     database: null
@@ -93,7 +93,7 @@ datasets:
     target_table: drugs
     target_column: active
     include_all_schemas: false
-    enabled: false
+    enabled: true
 
   - sql_type: mysql
     database: null

@@ -1,13 +1,17 @@
 import itertools
+import queue
+from collections import defaultdict
 from typing import Optional
 
+import numpy as np
+import pandas as pd
 import networkx as nx
 from sklearn.feature_extraction.text import TfidfVectorizer, HashingVectorizer
+from tqdm import tqdm
 
-from neural import *  # DRMs
-from learning import *  # starspace
 from utils import OrderedDictList
-from vectorizers import *
+from vectorizers import conjunctVectorizer
+
 from woe import WOEEncoder
 
 import logging
@@ -18,14 +22,14 @@ logging.basicConfig(format='%(asctime)s - %(message)s',
                     datefmt='%d-%b-%y %H:%M:%S')
 logging.getLogger().setLevel(logging.INFO)
 
-sql_type_dict = {
+SQL_TYPE_DICT = {
     "mssql": MSSQLDatabase,
     "mysql": MYSQLDatabase
 }
 
 
 def get_data(sql_type: str, database: Optional[str], target_schema: str, include_all_schemas: Optional[bool]):
-    db_object = sql_type_dict[sql_type]
+    db_object = SQL_TYPE_DICT[sql_type]
 
     kwargs = {
         "target_schema": target_schema
@@ -84,7 +88,9 @@ def generate_relational_words(tables,
                               primary_keys=None):
     """
     Key method for generation of relational words and documents.
-    It traverses individual tables in path, and consequantially appends the witems to a witem set. This method is a rewritten, non exponential (in space) version of the original Wordification algorithm (Perovsek et al, 2014).
+    It traverses individual tables in path, and consequantially appends the witems to a witem set.
+    This method is a rewritten,
+        non-exponential (in space) version of the original Wordification algorithm (Perovsek et al, 2014).
     input: a collection of tables and a foreign key graph
     output: a representation in form of a sparse matrix.
     """
@@ -137,7 +143,7 @@ def generate_relational_words(tables,
 
     # The main propositionalization routine
     logging.info("Propositionalization of core table ..")
-    for index, row in tqdm.tqdm(core_table.iterrows(),
+    for index, row in tqdm(core_table.iterrows(),
                                 total=core_table.shape[0]):
         for i in range(len(row)):
             column_name = row.index[i]
@@ -153,7 +159,7 @@ def generate_relational_words(tables,
             nx.bfs_successors(fk_graph, (target_table, core_fk)))
 
         # Traverse the row space
-        for index, row in tqdm.tqdm(core_table.iterrows(),
+        for index, row in tqdm(core_table.iterrows(),
                                     total=core_table.shape[0]):
 
             current_depth = 0
@@ -435,6 +441,7 @@ def generate_custom_relational_words(tables,
         logging.info("Stored woe representation of the features.")
         return transformed_features, target_classes_dict, encoder
 
+
 def calculate_features(features_data, target_classes=None, encoder=None):
     """
     Process features data using WOE encoding. If target_classes is provided, it assumes
@@ -514,6 +521,8 @@ def keep_datetime_or_matched_columns(df_original, df_reference):
     df_modified = df_original[cols_to_keep]
 
     return df_modified
+
+
 def cast_dataframe_columns(df_to_cast, df_reference):
     """
     Cast columns of df_to_cast to have the same data type as corresponding columns in df_reference.
@@ -531,6 +540,7 @@ def cast_dataframe_columns(df_to_cast, df_reference):
             target_dtype = df_reference[column].dtype
             df_to_cast[column] = df_to_cast[column].astype(target_dtype)
     return df_to_cast
+
 
 def extract_datetime_features(features_data: pd.DataFrame, prefix: str = 'default', drop_orig: bool = True):
     """
@@ -573,7 +583,7 @@ def extract_datetime_features(features_data: pd.DataFrame, prefix: str = 'defaul
         # Additional feature: is_weekend
         new_columns[f'{pfx}is_weekend'] = np.where(df[var].dt.day_of_week.isin([5, 6]), 1, 0)
 
-    # Concatenate all new columns at once
+        # Concatenate all new columns at once
         df = pd.concat([df, pd.DataFrame(new_columns, index=df.index)], axis=1)
 
         if drop_orig:
@@ -582,3 +592,6 @@ def extract_datetime_features(features_data: pd.DataFrame, prefix: str = 'defaul
 
     logging.info("Datetime features extraction completed successfully.")
     return df
+
+
+

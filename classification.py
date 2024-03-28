@@ -1,10 +1,7 @@
-import numpy as np
-
 from neural import *
 from learning import *
 
 from sklearn.metrics import roc_auc_score, accuracy_score, f1_score
-from scipy import sparse
 from tqdm import tqdm
 
 
@@ -56,10 +53,10 @@ def encode_classes(train_classes, test_classes):
 def prop_drm_tfidf_classification(args, train_features, train_classes, test_features, test_classes):
     train_classes, test_classes, _ = encode_classes(train_classes, test_classes)
 
-    model = E2EDNN(num_epochs=args.epochs,
-                   learning_rate=args.learning_rate,
-                   hidden_layer_size=args.hidden_size,
-                   dropout=args.dropout)
+    model = E2EDNN(num_epochs=args.get('epochs'),
+                   learning_rate=args.get('learning_rate'),
+                   hidden_layer_size=args.get('hidden_size'),
+                   dropout=args.get('dropout'))
 
     # standard fit predict
     model.fit(train_features, train_classes)
@@ -87,11 +84,11 @@ def prop_drm_tfidf_classification(args, train_features, train_classes, test_feat
 def prop_star_tfidf_classification(args, train_features, train_classes, test_features, test_classes):
     train_classes, test_classes, _ = encode_classes(train_classes, test_classes)
 
-    model = starspaceLearner(epoch=args.epochs,
-                             learning_rate=args.learning_rate,
-                             neg_search_limit=args.negative_search_limit,
-                             dim=args.hidden_size,
-                             max_neg_samples=args.negative_samples_limit)
+    model = starspaceLearner(epoch=args.get('epochs'),
+                             learning_rate=args.get('learning_rate'),
+                             neg_search_limit=args.get('negative_search_limit'),
+                             dim=args.get('hidden_size'),
+                             max_neg_samples=args.get('negative_samples_limit'))
 
     # standard fit predict
     model.fit(train_features, train_classes)
@@ -153,10 +150,10 @@ def prop_drm_woe_classification(args, train_features, train_classes, test_featur
     if len(test_classes) != len(test_features.index):
         test_classes = {key: test_classes[key] for key in test_classes.keys() if key in test_features.index}
     test_classes_encoded = encoder.transform(list(test_classes.values()))
-    model = E2EDNN(num_epochs=args.epochs,
-                   learning_rate=args.learning_rate,
-                   hidden_layer_size=args.hidden_size,
-                   dropout=args.dropout)
+    model = E2EDNN(num_epochs=args.get('epochs'),
+                   learning_rate=args.get('learning_rate'),
+                   hidden_layer_size=args.get('hidden_size'),
+                   dropout=args.get('dropout'))
 
     # standard fit predict
     model.fit(train_x, train_y, onehot=False)
@@ -207,11 +204,11 @@ def prop_star_woe_classification(args, train_features, train_classes, test_featu
         test_classes = {key: test_classes[key] for key in test_classes.keys() if key in test_features.index}
     test_classes_encoded = encoder.transform(list(test_classes.values()))
 
-    model = starspaceLearner(epoch=args.epochs,
-                             learning_rate=args.learning_rate,
-                             neg_search_limit=args.negative_search_limit,
-                             dim=args.hidden_size,
-                             max_neg_samples=args.negative_samples_limit)
+    model = starspaceLearner(epoch=args.get('epochs'),
+                             learning_rate=args.get('learning_rate'),
+                             neg_search_limit=args.get('negative_search_limit'),
+                             dim=args.get('hidden_size'),
+                             max_neg_samples=args.get('negative_samples_limit'))
 
     # standard fit predict
     model.fit(train_x, train_y)
@@ -271,7 +268,7 @@ learners_dict = {"svm_learner": svm_learner,
 def traditional_learner_tfidf_classification(args, train_features, train_classes, test_features, test_classes):
     train_classes, test_classes, _ = encode_classes(train_classes, test_classes)
 
-    learner_func = learners_dict[args.learner]
+    learner_func = learners_dict[args.get('learner')]
     model = learner_func(args, train_features, train_classes)
 
     # standard fit predict
@@ -315,7 +312,7 @@ def traditional_learner_woe_classification(args, train_features, train_classes, 
         test_classes = {key: test_classes[key] for key in test_classes.keys() if key in test_features.index}
     test_classes_encoded = encoder.transform(list(test_classes.values()))
 
-    learner_func = learners_dict[args.learner]
+    learner_func = learners_dict[args.get('learner')]
     model = learner_func(args, train_x, train_y)
 
     predictions = model.predict(test_x)
@@ -341,3 +338,4 @@ def traditional_learner_woe_classification(args, train_features, train_classes, 
         roc = 0
         custom_roc = 0
     return acc, f1, roc, custom_roc
+

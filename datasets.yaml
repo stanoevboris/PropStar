@@ -77,7 +77,7 @@ datasets:
     target_table: trains
     target_column: direction
     include_all_schemas: false
-    enabled: true
+    enabled: false
 
   - sql_type: mysql
     database: null
@@ -85,7 +85,7 @@ datasets:
     target_table: drugs
     target_column: active
     include_all_schemas: false
-    enabled: false
+    enabled: true
 
   - sql_type: mysql
     database: null
@@ -93,7 +93,7 @@ datasets:
     target_table: drugs
     target_column: active
     include_all_schemas: false
-    enabled: false
+    enabled: true
 
   - sql_type: mysql
     database: null
@@ -101,7 +101,7 @@ datasets:
     target_table: movies
     target_column: label
     include_all_schemas: false
-    enabled: false
+    enabled: true
 
   - sql_type: mysql
     database: null

@@ -1,4 +1,4 @@
-## misc methods for learning
+# misc methods for learning
 from sklearn import preprocessing
 from collections import defaultdict
 import time
@@ -37,7 +37,8 @@ def preprocess_and_split(X, num_fold=10, target_attribute=None):
 def svm_learner(args, train_features, train_classes):
     if args.get('gamma') != 'scale':
         args['gamma'] = float(args.get('gamma'))
-    clf = svm.SVC(kernel=args.get('kernel'), C=args.get('C'), gamma=args.get('gamma'), random_state=random_state, probability=True)
+    clf = svm.SVC(kernel=args.get('kernel'), C=args.get('C'), gamma=args.get('gamma'), random_state=random_state,
+                  probability=True)
     clf.fit(train_features, train_classes)
     return clf
 
@@ -60,7 +61,9 @@ def extra_tree_learner(args, train_features, train_classes):
 
 def random_forest_learner(args, train_features, train_classes):
     clf = RandomForestClassifier(n_estimators=args.get('n_estimators'),
-                                 random_state=random_state)
+                                 random_state=random_state,
+                                 n_jobs=-1
+                                 )
     clf.fit(train_features, train_classes)
 
     return clf
@@ -84,7 +87,8 @@ def gradient_boost_learner(args, train_features, train_classes):
 
 
 def xgboost_learner(args, train_features, train_classes):
-    clf = xgb.XGBClassifier(n_estimators=args.get('n_estimators'), learning_rate=args.get('learning_rate'), use_label_encoder=False,
+    clf = xgb.XGBClassifier(n_estimators=args.get('n_estimators'), learning_rate=args.get('learning_rate'),
+                            use_label_encoder=False,
                             random_state=random_state)
     clf.fit(train_features, train_classes)
     return clf
@@ -99,15 +103,15 @@ def lightgbm_learner(args, train_features, train_classes):
 
 def catboost_learner(args, train_features, train_classes):
     clf = CatBoostClassifier(iterations=args.get('n_estimators'), learning_rate=args.get('learning_rate'), depth=10,
-                             loss_function='Logloss', random_state=random_state, verbose=0)
+                             loss_function='Logloss', random_state=random_state, verbose=False)
     clf.fit(train_features, train_classes)
     return clf
 
 
-class starspaceLearner:
-    '''
+class StarSpaceLearner:
+    """
     This is a simple wrapper for the starspace learner.
-    '''
+    """
 
     def __init__(self,
                  vb=False,

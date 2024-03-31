@@ -1,5 +1,5 @@
 classifiers:
-  - name: random_forest_learner
+  - name: random_forest_learner #4
     params:
       - n_estimators: [ 100, 200]
         max_depth: [ null]
@@ -7,10 +7,69 @@ classifiers:
         min_samples_leaf: [ 1]
         representation_type: ["woe", "sklearn_tfidf"]
 
-  - name: extra_tree_learner
+  - name: extra_tree_learner #4
     params:
       - n_estimators: [ 100, 300 ]
-        max_depth: [ null, 10 ]
+        max_depth: [ null ]
         min_samples_split: [ 2 ]
-        min_samples_leaf: [ 1, 2 ]
+        min_samples_leaf: [ 1, ]
         representation_type: ["woe", "sklearn_tfidf"]
+
+  - name: ada_boost_learner #4
+    params:
+      - n_estimators: [ 50, 100 ]
+        learning_rate: [ 0.01 ]
+        representation_type: ["woe", "sklearn_tfidf"]
+
+  - name: gradient_boost_learner #8
+    params:
+      - n_estimators: [ 100, 200,  ]
+        learning_rate: [ 0.01, 0.1 ]
+        max_depth: [ 5 ]
+        representation_type: ["woe", "sklearn_tfidf"]
+
+  - name: xgboost_learner #8
+    params:
+      - n_estimators: [ 100, 200 ]
+        learning_rate: [ 0.01, 0.1]
+        max_depth: [ 6 ]
+        subsample: [ 0.8 ]
+        colsample_bytree: [ 0.8 ]
+        representation_type: ["woe", "sklearn_tfidf"]
+
+  - name: lightgbm_learner #8
+    params:
+      - n_estimators: [ 100, 200]
+        learning_rate: [ 0.01, 0.1 ]
+        max_depth: [ -1 ] # -1 for no limit
+        num_leaves: [ 31]
+        subsample: [ 0.8]
+        colsample_bytree: [ 0.8]
+        representation_type: ["woe", "sklearn_tfidf"]
+
+  - name: catboost_learner #8
+    params:
+      - iterations: [ 100]
+        learning_rate: [ 0.01, 0.1 ]
+        depth: [ 4]
+        l2_leaf_reg: [ 1]
+        representation_type: ["woe", "sklearn_tfidf"]
+
+  - name: DRM #4
+    params:
+      - epochs: [5, 10]
+        learning_rate: [ 0.001]
+        hidden_size: [16, 32]
+        dropout: [0.1]
+        num_features: [30000]
+        representation_type: ["woe", "sklearn_tfidf"]
+
+  - name: starspace #
+    params:
+      - epochs: [5, 10]
+        learning_rate: [0.001]
+        hidden_size: [16, 32]
+        negative_samples_limit: [5]
+        negative_search_limit: [10]
+        num_features: [30000]
+        representation_type: [ "woe", "sklearn_tfidf" ]

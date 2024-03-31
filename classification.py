@@ -84,7 +84,7 @@ def prop_drm_tfidf_classification(args, train_features, train_classes, test_feat
 def prop_star_tfidf_classification(args, train_features, train_classes, test_features, test_classes):
     train_classes, test_classes, _ = encode_classes(train_classes, test_classes)
 
-    model = starspaceLearner(epoch=args.get('epochs'),
+    model = StarSpaceLearner(epoch=args.get('epochs'),
                              learning_rate=args.get('learning_rate'),
                              neg_search_limit=args.get('negative_search_limit'),
                              dim=args.get('hidden_size'),
@@ -204,7 +204,7 @@ def prop_star_woe_classification(args, train_features, train_classes, test_featu
         test_classes = {key: test_classes[key] for key in test_classes.keys() if key in test_features.index}
     test_classes_encoded = encoder.transform(list(test_classes.values()))
 
-    model = starspaceLearner(epoch=args.get('epochs'),
+    model = StarSpaceLearner(epoch=args.get('epochs'),
                              learning_rate=args.get('learning_rate'),
                              neg_search_limit=args.get('negative_search_limit'),
                              dim=args.get('hidden_size'),

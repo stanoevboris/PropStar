@@ -16,7 +16,6 @@ logging.basicConfig(format='%(asctime)s - %(message)s',
                     datefmt='%d-%b-%y %H:%M:%S')
 logging.getLogger().setLevel(logging.INFO)
 
-
 def get_all_columns():
     # Initialize a set to collect all unique keys
     all_columns = set(constants.COMMON_PARAMS.keys())
@@ -212,6 +211,7 @@ def save_results(args, scores, grid_dict):
     combined_dict = {**all_columns,
                      'labels_occurrence_percentage': grid_dict.get('labels_occurrence_percentage', '/'),
                      'total_execution_time': grid_dict.get('total_execution_time', '/')}
+    combined_dict = {k: combined_dict[k] for k in sorted(combined_dict)}
 
     # Calculate stats for each metric and merge them into combined_dict
     for metric in scores:

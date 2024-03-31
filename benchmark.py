@@ -61,6 +61,24 @@ def process_dataset(dataset, args):
     logging.info(f"Execution time: {execution_time:.4f} seconds")
 
 
+def evaluate_dataset(target_schema, tables, target_table, target_attribute, args, primary_keys, fkg):
+    """
+    Evaluate and classify the dataset, returning scores for each classifier specified
+    in the configuration file.
+    """
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        # Create a future for each classifier process
+        futures = [executor.submit(process_classifier, target_schema, classifier_name, classifier_params, tables,
+                                   target_table, target_attribute, args, primary_keys, fkg)
+                   for classifier_name, classifier_params in generate_classifier_params(args.config_file)]
+
+        for future in as_completed(futures):
+            classifier_name, grid_dict, execution_time = future.result()
+            logging.info(f"Evaluation of {grid_dict} - {target_attribute} - "
+                         f"completed in {execution_time} seconds.")
+
+
 def process_classifier(target_schema, classifier_name, classifier_params, tables, target_table, target_attribute, args,
                        primary_keys, fkg):
     """
@@ -89,24 +107,6 @@ def process_classifier(target_schema, classifier_name, classifier_params, tables
     classifier_execution_time = classifier_end_time - classifier_start_time
     # CLASSIFIER_GRID[classifier_name]['execution_time'] = classifier_execution_time
     return classifier_name, grid_dict, classifier_execution_time
-
-
-def evaluate_dataset(target_schema, tables, target_table, target_attribute, args, primary_keys, fkg):
-    """
-    Evaluate and classify the dataset, returning scores for each classifier specified
-    in the configuration file.
-    """
-
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        # Create a future for each classifier process
-        futures = [executor.submit(process_classifier, target_schema, classifier_name, classifier_params, tables,
-                                   target_table, target_attribute, args, primary_keys, fkg)
-                   for classifier_name, classifier_params in generate_classifier_params(args.config_file)]
-
-        for future in as_completed(futures):
-            classifier_name, grid_dict, execution_time = future.result()
-            logging.info(f"Evaluation of {grid_dict} - {target_attribute} - "
-                         f"completed in {execution_time} seconds.")
 
 
 def process_folds(classifier_name, tables, target_table, target_attribute, folds, primary_keys, fkg, grid_dict):

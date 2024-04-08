@@ -10,12 +10,12 @@ from sqlalchemy_utils import database_exists, create_database
 
 
 def create_connection(database_name: str):
-    mssql_db = MSSQLDatabase(target_schema=database_name)
-    engine = create_engine(mssql_db.connection_url, echo=True)
-    if not database_exists(engine.url):
-        create_database(engine.url)
+    mssql_db = MSSQLDatabase(database="woe", target_schema=database_name)
+    mssql_engine = create_engine(mssql_db.connection_url, echo=True)
+    if not database_exists(mssql_engine.url):
+        create_database(mssql_engine.url)
 
-    return engine
+    return mssql_engine
 
 
 class Database(ABC):

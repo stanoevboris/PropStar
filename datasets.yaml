@@ -1,6 +1,30 @@
 datasets:
   - sql_type: mssql
     database: woe
+    target_schema: indoor_user_movement
+    target_table: target
+    target_column: class_label
+    include_all_schemas: false
+    enabled: false
+
+  - sql_type: mssql
+    database: woe
+    target_schema: mobile_imu_activity_recognition
+    target_table: original_table
+    target_column: Activity
+    include_all_schemas: false
+    enabled: true
+
+  - sql_type: mssql
+    database: woe
+    target_schema: room_occupancy
+    target_table: original_table
+    target_column: Room_Occupancy_Count
+    include_all_schemas: false
+    enabled: false
+
+  - sql_type: mssql
+    database: woe
     target_schema: credit_exp2
     target_table: target
     target_column: class
@@ -85,7 +109,7 @@ datasets:
     target_table: drugs
     target_column: active
     include_all_schemas: false
-    enabled: true
+    enabled: false
 
   - sql_type: mysql
     database: null
@@ -93,7 +117,7 @@ datasets:
     target_table: drugs
     target_column: active
     include_all_schemas: false
-    enabled: true
+    enabled: false
 
   - sql_type: mysql
     database: null
@@ -101,7 +125,7 @@ datasets:
     target_table: movies
     target_column: label
     include_all_schemas: false
-    enabled: true
+    enabled: false
 
   - sql_type: mysql
     database: null

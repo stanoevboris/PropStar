@@ -9,7 +9,7 @@ import networkx as nx
 from sklearn.feature_extraction.text import TfidfVectorizer, HashingVectorizer
 from tqdm import tqdm
 
-from utils import OrderedDictList
+from utils import OrderedDictList, is_imbalanced, balance_dataset_with_smote
 from vectorizers import conjunctVectorizer
 
 from woe import WOEEncoder
@@ -144,11 +144,11 @@ def generate_relational_words(tables,
     # The main propositionalization routine
     logging.info("Propositionalization of core table ..")
     for index, row in tqdm(core_table.iterrows(),
-                                total=core_table.shape[0]):
+                           total=core_table.shape[0]):
         for i in range(len(row)):
             column_name = row.index[i]
             if column_name != target_attribute and not column_name in core_foreign_keys:
-                witem = "-".join([target_table, column_name, str(row[i])])
+                witem = "-".join([target_table, column_name, str(row.iloc[i])])
                 feature_vectors[index].append(witem)
                 num_witems += 1
                 total_witems.add(witem)
@@ -160,7 +160,7 @@ def generate_relational_words(tables,
 
         # Traverse the row space
         for index, row in tqdm(core_table.iterrows(),
-                                    total=core_table.shape[0]):
+                               total=core_table.shape[0]):
 
             current_depth = 0
             to_traverse = queue.Queue()
@@ -236,8 +236,13 @@ def generate_relational_words(tables,
             relation_order,
             vectorization_type,
             max_features=num_features)
+        # train_data imbalanced labels handling
+        if is_imbalanced(target_classes, threshold=0.3):
+            matrix_res, target_classes_res = balance_dataset_with_smote(matrix, target_classes.array)
+
         logging.info("Stored sparse representation of the witemsets.")
-        return matrix, target_classes.array, encoder
+
+        return matrix_res, target_classes_res, encoder
 
 
 def relational_words_to_matrix_with_vec(fw,
@@ -592,6 +597,3 @@ def extract_datetime_features(features_data: pd.DataFrame, prefix: str = 'defaul
 
     logging.info("Datetime features extraction completed successfully.")
     return df
-
-
-

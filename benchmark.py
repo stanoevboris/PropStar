@@ -22,7 +22,7 @@ save_results_lock = Lock()
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--results_file", default="experiments.csv", help="The path to the results file")
-    parser.add_argument("--config_file", default="default_config.yaml", help="The path to the classifiers config")
+    parser.add_argument("--config_file", default="wordification_config.yaml", help="The path to the classifiers config")
     parser.add_argument('--folds', type=int, default=10)
     return parser.parse_args()
 
@@ -67,7 +67,7 @@ def evaluate_dataset(target_schema, tables, target_table, target_attribute, args
     in the configuration file.
     """
 
-    with ThreadPoolExecutor(max_workers=2) as executor:
+    with ThreadPoolExecutor(max_workers=1) as executor:
         # Create a future for each classifier process
         futures = [executor.submit(process_classifier, target_schema, classifier_name, classifier_params, tables,
                                    target_table, target_attribute, args, primary_keys, fkg)

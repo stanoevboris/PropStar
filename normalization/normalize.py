@@ -2,6 +2,7 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 from db_utils import create_connection
 
+
 def create_mssql_schema(connection, database_name: str):
     connection.execute(text(
         f"IF (SCHEMA_ID('{database_name}') IS NOT NULL)"

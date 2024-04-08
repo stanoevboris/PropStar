@@ -67,7 +67,7 @@ def evaluate_dataset(target_schema, tables, target_table, target_attribute, args
     in the configuration file.
     """
 
-    with ThreadPoolExecutor(max_workers=2) as executor:
+    with ThreadPoolExecutor(max_workers=1) as executor:
         # Create a future for each classifier process
         futures = [executor.submit(process_classifier, target_schema, classifier_name, classifier_params, tables,
                                    target_table, target_attribute, args, primary_keys, fkg)

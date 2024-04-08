@@ -7,14 +7,19 @@ import numpy as np
 import logging
 
 import pandas as pd
+from imblearn.combine import SMOTEENN
+from imblearn.over_sampling import SMOTE
+from imblearn.under_sampling import EditedNearestNeighbours
 from sklearn.preprocessing import KBinsDiscretizer
 from itertools import product
 import constants
+
 PROJECT_DIR = os.path.dirname(__file__)
 
 logging.basicConfig(format='%(asctime)s - %(message)s',
                     datefmt='%d-%b-%y %H:%M:%S')
 logging.getLogger().setLevel(logging.INFO)
+
 
 def get_all_columns():
     # Initialize a set to collect all unique keys
@@ -280,3 +285,45 @@ def preprocess_tables(target_schema: str, tables: dict) -> dict:
         movies = result_with_original_data[["id", "name", "year", "label"]]
         tables["movies"] = movies.copy()
     return tables
+
+
+def is_imbalanced(labels, threshold=0.2) -> bool:
+    """
+    Check if the dataset is imbalanced based on the provided threshold.
+
+    Parameters:
+    - labels (pd.Series): A pandas Series containing the class labels of the dataset.
+    - threshold (float): The threshold for determining imbalance. Represents the minimum proportion of the minority class.
+                         Defaults to 0.2 (20%).
+
+    Returns:
+    - bool: True if the dataset is imbalanced, False otherwise.
+    """
+    # Calculate the proportion of each class
+    class_proportions = labels.value_counts(normalize=True)
+    # Find the proportion of the minority class
+    min_class_proportion = class_proportions.min()
+
+    return min_class_proportion < threshold
+
+
+def balance_dataset_with_smote(X_train, y_train):
+    """
+    Applies SMOTE to balance the training dataset.
+
+    Parameters:
+    - X_train (array-like): Training features.
+    - y_train (array-like): Training labels.
+
+    Returns:
+    - X_resampled (array-like): The resampled training features after applying SMOTE.
+    - y_resampled (array-like): The resampled training labels after applying SMOTE.
+    """
+    # Initialize the SMOTE object
+    smote = SMOTE(random_state=42, sampling_strategy='minority')
+    # smote_enn = SMOTEENN(smote=SMOTE(random_state=42),
+    #                      enn=EditedNearestNeighbours(sampling_strategy='majority'))
+    # Apply SMOTE
+    X_resampled, y_resampled = smote.fit_resample(X_train, y_train)
+
+    return X_resampled, y_resampled

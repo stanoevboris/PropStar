@@ -238,6 +238,7 @@ def save_results(args, scores, grid_dict):
             writer.writeheader()
 
         writer.writerow(combined_dict)
+    logging.info(f"Finished saving results for {combined_dict['dataset']}")
 
 
 def clean_dataframes(tables: dict):
@@ -320,10 +321,13 @@ def balance_dataset_with_smote(X_train, y_train):
     - y_resampled (array-like): The resampled training labels after applying SMOTE.
     """
     # Initialize the SMOTE object
-    smote = SMOTE(random_state=42, sampling_strategy='minority')
-    # smote_enn = SMOTEENN(smote=SMOTE(random_state=42),
-    #                      enn=EditedNearestNeighbours(sampling_strategy='majority'))
+    # smote = SMOTE(random_state=42, sampling_strategy='minority')
+    smote_enn = SMOTEENN(smote=SMOTE(random_state=42),
+                         enn=EditedNearestNeighbours(sampling_strategy='majority'))
     # Apply SMOTE
-    X_resampled, y_resampled = smote.fit_resample(X_train, y_train)
+    X_resampled, y_resampled = smote_enn.fit_resample(X_train, y_train)
+
+    logging.info(f"Original dataset shape {np.bincount(y_train)}")
+    logging.info(f"Resampled dataset shape {np.bincount(y_resampled)}")
 
     return X_resampled, y_resampled

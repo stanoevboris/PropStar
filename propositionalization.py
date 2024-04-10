@@ -238,11 +238,13 @@ def generate_relational_words(tables,
             max_features=num_features)
         # train_data imbalanced labels handling
         if is_imbalanced(target_classes, threshold=0.3):
-            matrix_res, target_classes_res = balance_dataset_with_smote(matrix, target_classes.array)
+            features, labels = balance_dataset_with_smote(matrix, target_classes.array)
+        else:
+            features, labels = matrix, target_classes.array
 
         logging.info("Stored sparse representation of the witemsets.")
 
-        return matrix_res, target_classes_res, encoder
+        return features, labels, encoder
 
 
 def relational_words_to_matrix_with_vec(fw,

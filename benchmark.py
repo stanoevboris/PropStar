@@ -53,7 +53,8 @@ def process_dataset(dataset, args):
                                          target_schema=target_schema,
                                          include_all_schemas=include_all_schemas)
     tables = preprocess_tables(target_schema=target_schema, tables=tables)
-
+    if target_schema == 'AdventureWorks2014':
+        fkg.remove(['SalesOrderHeader', 'SalesPersonID', 'SalesPerson', 'BusinessEntityID'])
     evaluate_dataset(target_schema, tables, target_table, target_attribute, args, primary_keys, fkg)
 
     end_time = time.time()
@@ -127,7 +128,7 @@ def process_folds(classifier_name, tables, target_table, target_attribute, folds
         """
     accuracy_scores, f1_scores, roc_auc_scores, custom_roc_auc_scores = [], [], [], []
     split_gen = preprocess_and_split(X=tables[target_table], num_fold=folds, target_attribute=target_attribute)
-    with ProcessPoolExecutor(max_workers=2) as executor:
+    with ProcessPoolExecutor(max_workers=1) as executor:
         futures = [executor.submit(evaluate_dataset_fold, classifier_name, train_index, test_index,
                                    tables, target_table, target_attribute,
                                    primary_keys, fkg, grid_dict)

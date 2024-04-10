@@ -105,6 +105,14 @@ datasets:
 
   - sql_type: mysql
     database: null
+    target_schema: AdventureWorks2014
+    target_table: SalesOrderHeader
+    target_column: churn
+    include_all_schemas: false
+    enabled: false
+
+  - sql_type: mysql
+    database: null
     target_schema: trains
     target_table: trains
     target_column: direction

@@ -28,11 +28,21 @@ classifiers:
         max_depth: [ 5 ]
         representation_type: ["sklearn_tfidf"]
 
-  - name: DRM #4
+  - name: DRM 
     params:
-      - epochs: [5]
+      - epochs: [5, 10]
         learning_rate: [ 0.001]
         hidden_size: [16, 32]
         dropout: [0.1]
+        num_features: [30000]
+        representation_type: ["sklearn_tfidf"]
+
+  - name: starspace
+    params:
+      - epochs: [5, 10]
+        learning_rate: [0.001]
+        hidden_size: [16, 32]
+        negative_samples_limit: [5]
+        negative_search_limit: [10]
         num_features: [30000]
         representation_type: ["sklearn_tfidf"]

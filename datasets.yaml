@@ -5,13 +5,13 @@ datasets:
     target_table: target
     target_column: class_label
     include_all_schemas: false
-    enabled: false
+    enabled: true
 
   - sql_type: mssql
     database: woe
-    target_schema: mobile_imu_activity_recognition
-    target_table: original_table
-    target_column: Activity
+    target_schema: kinematics_data
+    target_table: target_table
+    target_column: activity
     include_all_schemas: false
     enabled: true
 
@@ -21,7 +21,15 @@ datasets:
     target_table: original_table
     target_column: Room_Occupancy_Count
     include_all_schemas: false
-    enabled: false
+    enabled: true
+
+  - sql_type: mssql
+    database: woe
+    target_schema: mobile_imu_activity_recognition
+    target_table: original_table
+    target_column: Activity
+    include_all_schemas: false
+    enabled: true
 
   - sql_type: mssql
     database: woe

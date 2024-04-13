@@ -1,11 +1,15 @@
 import pandas as pd
 from sklearn.model_selection import GridSearchCV, StratifiedKFold
 from imblearn.pipeline import Pipeline as ImbPipeline
-from imblearn.combine import SMOTEENN
-from imblearn.under_sampling import EditedNearestNeighbours
-from imblearn.over_sampling import SMOTE
+from imblearn.combine import SMOTEENN, SMOTETomek
+from imblearn.under_sampling import EditedNearestNeighbours, RandomUnderSampler
+from imblearn.over_sampling import SMOTE, RandomOverSampler
 from sklearn.base import is_classifier
 from sklearn.utils import all_estimators
+
+import xgboost as xgb
+import lightgbm as lgb
+import catboost as cb
 
 
 class EstimatorSelectionHelper:
@@ -15,6 +19,10 @@ class EstimatorSelectionHelper:
         self.grid_searches = {}
         self.cv = cv or StratifiedKFold(n_splits=10, random_state=42, shuffle=True)
         self.callable_dict = {name: cls for name, cls in all_estimators() if is_classifier(cls)}
+        # Now manually add the other classifiers
+        self.callable_dict['XGBClassifier'] = xgb.XGBClassifier
+        self.callable_dict['LGBMClassifier'] = lgb.LGBMClassifier
+        self.callable_dict['CatBoostClassifier'] = cb.CatBoostClassifier
 
     def fit(self, X, y, fe_pipeline=None, n_jobs=3, verbose=1, scoring=None, refit=False):
         for model_name in self.models:
@@ -22,11 +30,12 @@ class EstimatorSelectionHelper:
                 raise ValueError(f"{model_name} is not a recognized sklearn classifier")
             print(f"Running GridSearchCV for {model_name}.")
             classifier = self.callable_dict[model_name]()
-            smote_enn = SMOTEENN(smote=SMOTE(random_state=42),
-                                 enn=EditedNearestNeighbours(sampling_strategy='majority'))
+            ros = RandomUnderSampler(random_state=42)
+            # smote_enn = SMOTEENN(smote=SMOTE(random_state=42),
+            #                      enn=EditedNearestNeighbours(sampling_strategy='majority'))
             pipeline = ImbPipeline([
                 ('feature_engineering', fe_pipeline) if fe_pipeline else ('passthrough', 'passthrough'),
-                ('sampler', smote_enn),
+                ('sampler', ros),
                 ('classifier', classifier)
             ])
             params = self.search_space[model_name]
@@ -35,7 +44,7 @@ class EstimatorSelectionHelper:
             gs.fit(X, y)
             self.grid_searches[model_name] = gs
 
-    def summary(self):
+    def summary(self) -> pd.DataFrame:
         results = []
         for model_name, grid_search in self.grid_searches.items():
             for i in range(len(grid_search.cv_results_['params'])):

@@ -1,48 +1,56 @@
 classifiers:
-  - name: random_forest_learner #4
+  - name: xgboost_learner #8
     params:
-      - n_estimators: [ 16, 32]
-        max_depth: [ null]
-        min_samples_split: [ 2]
-        min_samples_leaf: [ 1]
-        representation_type: ["sklearn_tfidf"]
-
-  - name: extra_tree_learner #4
-    params:
-      - n_estimators: [ 16, 32 ]
-        max_depth: [ null ]
-        min_samples_split: [ 2 ]
-        min_samples_leaf: [ 1, ]
-        representation_type: ["sklearn_tfidf"]
-
-  - name: ada_boost_learner #4
-    params:
-      - n_estimators: [ 16, 32 ]
-        learning_rate: [ 0.01 ]
-        representation_type: ["sklearn_tfidf"]
-
-  - name: gradient_boost_learner #8
-    params:
-      - n_estimators: [ 16, 32,  ]
+      - n_estimators: [ 100, 200 ]
         learning_rate: [ 0.01, 0.1 ]
-        max_depth: [ 5 ]
-        representation_type: ["sklearn_tfidf"]
-
-  - name: DRM 
-    params:
-      - epochs: [5, 10]
-        learning_rate: [ 0.001]
-        hidden_size: [16, 32]
-        dropout: [0.1]
-        num_features: [30000]
-        representation_type: ["sklearn_tfidf"]
-
-  - name: starspace
-    params:
-      - epochs: [5, 10]
-        learning_rate: [0.001]
-        hidden_size: [16, 32]
-        negative_samples_limit: [5]
-        negative_search_limit: [10]
-        num_features: [30000]
-        representation_type: ["sklearn_tfidf"]
+        max_depth: [ 6 ]
+        subsample: [ 0.8 ]
+        colsample_bytree: [ 0.8 ]
+        representation_type: [ "sklearn_tfidf" ]
+#  - name: random_forest_learner #4
+#    params:
+#      - n_estimators: [ 16, 32]
+#        max_depth: [ null]
+#        min_samples_split: [ 2]
+#        min_samples_leaf: [ 1]
+#        representation_type: ["sklearn_tfidf"]
+#
+#  - name: extra_tree_learner #4
+#    params:
+#      - n_estimators: [ 16, 32 ]
+#        max_depth: [ null ]
+#        min_samples_split: [ 2 ]
+#        min_samples_leaf: [ 1, ]
+#        representation_type: ["sklearn_tfidf"]
+#
+#  - name: ada_boost_learner #4
+#    params:
+#      - n_estimators: [ 16, 32 ]
+#        learning_rate: [ 0.01 ]
+#        representation_type: ["sklearn_tfidf"]
+#
+#  - name: gradient_boost_learner #8
+#    params:
+#      - n_estimators: [ 16, 32,  ]
+#        learning_rate: [ 0.01, 0.1 ]
+#        max_depth: [ 5 ]
+#        representation_type: ["sklearn_tfidf"]
+#
+#  - name: DRM
+#    params:
+#      - epochs: [5, 10]
+#        learning_rate: [ 0.001]
+#        hidden_size: [16, 32]
+#        dropout: [0.1]
+#        num_features: [30000]
+#        representation_type: ["sklearn_tfidf"]
+#
+#  - name: starspace
+#    params:
+#      - epochs: [5, 10]
+#        learning_rate: [0.001]
+#        hidden_size: [16, 32]
+#        negative_samples_limit: [5]
+#        negative_search_limit: [10]
+#        num_features: [30000]
+#        representation_type: ["sklearn_tfidf"]

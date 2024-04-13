@@ -1,4 +1,5 @@
 import sys
+
 sys.path.append('C:\Projects\Private\PropStar')
 sys.path.append('C:\Projects\Private\PropStar\datasets')
 from gridsearch.EstimatorSelectionHelper import EstimatorSelectionHelper
@@ -93,18 +94,9 @@ class StatisticalFeaturesExtractor(BaseEstimator, TransformerMixin):
 
     def transform(self, X, y=None):
         if not isinstance(X, pd.DataFrame):
-            X = pd.DataFrame(X) # .set_index('timestamp')
+            X = pd.DataFrame(X)  # .set_index('timestamp')
         rolling = X.rolling(window=60, min_periods=1)
         return np.hstack([rolling.mean().values, rolling.std().values])
-
-
-# Custom transformer for frequency domain features
-class FFTFeaturesExtractor(BaseEstimator, TransformerMixin):
-    def fit(self, X, y=None):
-        return self
-
-    def transform(self, X, y=None):
-        return np.abs(fft(X, axis=0))
 
 
 # Column selector helper
@@ -119,35 +111,17 @@ class ColumnSelector(BaseEstimator, TransformerMixin):
         return X[self.columns]
 
 
-sensor_columns = ['acceleration_x', 'acceleration_y', 'acceleration_z', 'gyro_x', 'gyro_y', 'gyro_z']
-timestamp_column = ['timestamp']
+sensor_columns = ['S1_Temp', 'S2_Temp', 'S3_Temp', 'S4_Temp', 'S1_Light', 'S2_Light', 'S3_Light', 'S4_Light',
+                  'S1_Sound', 'S2_Sound', 'S3_Sound', 'S4_Sound', 'S5_CO2', 'S5_CO2_Slope', 'S6_PIR', 'S7_PIR']
 
-# Define the feature engineering pipeline
-feature_engineering_pipeline = FeatureUnion([
-    ('time_features', ColumnTransformer([('time_extractor', TimeFeaturesExtractor(), 'timestamp')])),
-    ('sensor_statistical', Pipeline([
-        ('selector', ColumnSelector(sensor_columns)),
-        ('statistical_features', StatisticalFeaturesExtractor()),
-        ('imputer', SimpleImputer(strategy='mean')),  # Handle missing values if necessary
-        ('scaler', StandardScaler())  # Scaling features
-    ])),
-    ('sensor_fft', Pipeline([
-        ('selector', ColumnSelector(sensor_columns)),
-        ('fft', FFTFeaturesExtractor()),
-        ('imputer', SimpleImputer(strategy='mean')),  # Handle missing values if necessary
-        ('scaler', StandardScaler())  # Scaling FFT features
-    ])),
-
-    ('wrist_encoder', Pipeline([
-        ('selector', ColumnSelector(['wrist'])),
-        ('encoder', OneHotEncoder())
-    ]))
-])
-
-# Combine feature engineering pipeline with a model in a full pipeline
-full_pipeline = Pipeline([
-    ('features', feature_engineering_pipeline),
-    # Add your classifier pipeline here
+feature_engineering_pipeline = ColumnTransformer([
+    ('datetime', TimeFeaturesExtractor(), 'timestamp'),
+    ('sensors', Pipeline([
+        ('rolling', StatisticalFeaturesExtractor()),
+        ('scale', StandardScaler()),
+        ('imputer', SimpleImputer())
+    ]), sensor_columns),
+    ('categorical', OneHotEncoder(), ['S6_PIR', 'S7_PIR'])  # Assuming PIR sensors are categorical
 ])
 
 scoring = {
@@ -155,16 +129,22 @@ scoring = {
     'f1': make_scorer(f1_score),
     'roc_auc_score': make_scorer(roc_auc_score)
 }
+from ucimlrepo import fetch_ucirepo
 
-data = pd.read_csv('../datasets/Kinematics_Data.csv')
-data.drop('username', axis=1, inplace=True)
-data['timestamp'] = pd.to_datetime(data['date'] + ' ' + data['time'], format='%Y-%m-%d %H:%M:%S:%f')
-data.drop(['date', 'time'], axis=1, inplace=True)
+# fetch dataset
+room_occupancy_estimation = fetch_ucirepo(id=864)
 
-X = data.drop('activity', axis=1)
-y = data['activity']
+# data (as pandas dataframes)
+X = room_occupancy_estimation.data.features
+y = room_occupancy_estimation.data.targets
+
+y.loc[y['Room_Occupancy_Count'] > 0, 'Room_Occupancy_Count'] = 1
+y = y.to_numpy()
+X['timestamp'] = pd.to_datetime(X['Date'] + ' ' + X['Time'])
+X.drop(['Date', 'Time'], axis=1, inplace=True)
+
 es = EstimatorSelectionHelper(search_space=search_space)
 es.fit(X, y, fe_pipeline=feature_engineering_pipeline, scoring=scoring, n_jobs=5, verbose=10)
 results = es.summary()
 
-results.to_csv("kinematics.csv", mode='w')
+results.to_csv("room_occupancy.csv", mode='w')

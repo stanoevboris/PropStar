@@ -29,7 +29,7 @@ datasets:
     target_table: original_table
     target_column: Activity
     include_all_schemas: false
-    enabled: true
+    enabled: false
 
   - sql_type: mssql
     database: woe

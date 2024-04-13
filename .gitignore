@@ -187,7 +187,6 @@ fabric.properties
 /conf.py
 results/
 normalization/
-gridsearch/
 feature_selection/
 fe_numerical/
 datasets/

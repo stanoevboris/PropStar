@@ -22,7 +22,7 @@ save_results_lock = Lock()
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--results_file", default="experiments.csv", help="The path to the results file")
-    parser.add_argument("--config_file", default="default_config.yaml", help="The path to the classifiers config")
+    parser.add_argument("--config_file", default="default_config.yaml", help="The path to the classifiers dataset_config")
     parser.add_argument('--folds', type=int, default=10)
     return parser.parse_args()
 

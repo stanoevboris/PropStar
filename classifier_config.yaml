@@ -3,71 +3,55 @@ classifiers:
     class: sklearn.ensemble.RandomForestClassifier
     param_grid:
       n_estimators: [100, 200]
-      max_depth: [null]
-      min_samples_split: [2]
-      min_samples_leaf: [1]
+      max_depth: [1, 50]
+      min_samples_split: [2, 10]
+      min_samples_leaf: [1, 4]
   extra_trees:
     class: sklearn.ensemble.ExtraTreesClassifier
     param_grid:
       n_estimators: [100, 300]
-      max_depth: [null]
-      min_samples_split: [2]
-      min_samples_leaf: [1]
-
+      max_depth: [1, 50]  # use None for unlimited depth
+      min_samples_split: [2, 10]
+      min_samples_leaf: [1, 4]
   ada_boost:
     class: sklearn.ensemble.AdaBoostClassifier
     param_grid:
       n_estimators: [50, 100]
-      learning_rate: [0.01]
-
+      learning_rate: [0.01, 1.0]  # use range for log-uniform prior
   gradient_boost:
     class: sklearn.ensemble.GradientBoostingClassifier
     param_grid:
       n_estimators: [100, 200]
       learning_rate: [0.01, 0.1]
-      max_depth: [5]
-
+      max_depth: [3, 5, 7]
   xgboost:
     class: xgboost.XGBClassifier
     param_grid:
       n_estimators: [100, 200]
       learning_rate: [0.01, 0.1]
-      max_depth: [6]
-      subsample: [0.8]
-      colsample_bytree: [0.8]
-
+      max_depth: [6, 10]
+      subsample: [0.8, 1.0]
+      colsample_bytree: [0.8, 1.0]
   lightgbm:
     class: lightgbm.LGBMClassifier
     param_grid:
       n_estimators: [100, 200]
       learning_rate: [0.01, 0.1]
-      max_depth: [-1]  # -1 for no limit
-      num_leaves: [31]
-      subsample: [0.8]
-      colsample_bytree: [0.8]
-
+      max_depth: [-1, 50]
+      num_leaves: [31, 128]
+      subsample: [0.8, 1.0]
+      colsample_bytree: [0.8, 1.0]
   catboost:
     class: catboost.CatBoostClassifier
     param_grid:
-      iterations: [100]
+      iterations: [100, 200]
       learning_rate: [0.01, 0.1]
-      depth: [4]
-      l2_leaf_reg: [1]
-
+      depth: [4, 8]
+      l2_leaf_reg: [1, 5]
   drm:
-    class: rdm.custom_classifiers.prop_drm.PropDRM  # Ensure this path is correct
+    class: rdm.custom_classifiers.prop_drm.PropDRM
     param_grid:
-      num_epochs: [5, 10]
-      learning_rate: [0.001]
-      hidden_layer_size: [16, 32]
-      dropout: [0.1]
-#
-#  starspace:
-#    class: your_package.StarSpaceLearner  # Ensure this path is correct
-#    param_grid:
-#      epochs: [5, 10]
-#      learning_rate: [0.001]
-#      hidden_size: [16, 32]
-#      negative_samples_limit: [5]
-#      negative_search_limit: [10]
-#      num_features: [30000]
+      num_epochs: [5, 50]
+      learning_rate: [0.001, 0.01]
+      hidden_layer_size: [16, 64]
+      dropout: [0.1, 0.5]

@@ -1,7 +1,10 @@
 import pandas as pd
 import yaml
+from sklearn.model_selection import StratifiedKFold
 from sklearn.pipeline import Pipeline
-from sklearn.model_selection import GridSearchCV
+from skopt import BayesSearchCV  # Import BayesSearchCV
+from skopt.space import Real, Integer, Categorical
+
 from sklearn.metrics import make_scorer, accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
 
 
@@ -36,15 +39,25 @@ class MLExperiment:
         scoring = {
             'accuracy': make_scorer(accuracy_score),
             'f1': make_scorer(f1_score),
-            'precision': make_scorer(precision_score),
+            'precision': make_scorer(precision_score, zero_division=0),
             'recall': make_scorer(recall_score),
             'roc_auc': make_scorer(roc_auc_score, needs_threshold=True)
         }
+        param_grid = classifier_info['param_grid']
+        search_spaces = {}
+        for param, values in param_grid.items():
+            if isinstance(values[0], int):
+                search_spaces[param] = Integer(min(values), max(values))
+            elif isinstance(values[0], float):
+                search_spaces[param] = Real(min(values), max(values), prior='log-uniform')
+            elif isinstance(values[0], str):
+                search_spaces[param] = Categorical(values)
 
-        grid_search = GridSearchCV(classifier, param_grid=classifier_info.get('param_grid', {}),
-                                   cv=10, scoring=scoring, refit=False, verbose=10)
+        stratified_cv = StratifiedKFold(n_splits=10)
+        bayes_search = BayesSearchCV(classifier, search_spaces=search_spaces,
+                                     n_iter=50, cv=stratified_cv, scoring=scoring, refit="roc_auc", verbose=10, n_jobs=-1)
 
-        steps.append(('classifier', grid_search))
+        steps.append(('classifier', bayes_search))
         return Pipeline(steps)
 
     def run_experiments(self, X, y):

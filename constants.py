@@ -1,12 +1,12 @@
 from classification import traditional_learner_tfidf_classification, traditional_learner_woe_classification, \
     prop_drm_tfidf_classification, prop_drm_woe_classification, prop_star_tfidf_classification, \
     prop_star_woe_classification
-from propositionalization import generate_custom_relational_words, generate_relational_words
+# from propositionalization import generate_custom_relational_words, generate_relational_words
 
-FEATURE_FUNC = {
-    "woe": generate_custom_relational_words,
-    "sklearn_tfidf": generate_relational_words
-}
+# FEATURE_FUNC = {
+#     "woe": generate_custom_relational_words,
+#     "sklearn_tfidf": generate_relational_words
+# }
 
 COMMON_CLASSIFIERS = {
     'sklearn_tfidf': traditional_learner_tfidf_classification,

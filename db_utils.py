@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 from sqlalchemy import engine
@@ -7,6 +8,7 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 
 from sqlalchemy_utils import database_exists, create_database
+import sqlalchemy as sa
 
 
 def create_connection(database_name: str):
@@ -19,6 +21,23 @@ def create_connection(database_name: str):
 
 
 class Database(ABC):
+    def __init__(self, target_schema: str, database: Optional[str] = None, include_all_schemas: bool = False):
+        self.database = database
+        self.target_schema = target_schema
+        self.include_all_schemas = include_all_schemas
+
+        self.initialize_logging()
+
+    @staticmethod
+    def initialize_logging():
+        logging.basicConfig(
+            format='[%(asctime)s] p%(process)s {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s',
+            datefmt='%m-%d %H:%M:%S',
+            level=logging.INFO)
+
+    @abstractmethod
+    def get_connection_url(self):
+        pass
 
     @abstractmethod
     def get_table(self, schema: Optional[str], table_name: str, connection):
@@ -32,10 +51,32 @@ class Database(ABC):
     def get_foreign_keys(self):
         pass
 
+    def get_data(self):
+        db_engine = create_engine(self.get_connection_url(), echo=True)
+        tables_dict = {}
+        with db_engine.connect() as connection:
+            schemas = [self.target_schema] if not self.include_all_schemas else sa.inspect(db_engine).get_schema_names()
+
+            for schema in schemas:
+                tables = sa.inspect(db_engine).get_table_names(schema=schema)
+                for table in tables:
+                    tables_dict[table] = self.get_table(schema=schema, table_name=table, connection=connection)
+
+            logging.info(f"Total tables read: {len(tables_dict)}")
+            logging.info(f"Tables read: {list(tables_dict.keys())}")
+
+            pks = pd.read_sql(text(self.get_primary_keys()), connection)
+            fks = pd.read_sql(text(self.get_foreign_keys()), connection)
+
+        pks_dict = dict(zip(pks['TableName'], pks['PrimaryKeyColumn']))
+        fk_graph = fks[['ChildTable', 'ChildColumn', 'ReferencedTable', 'ReferencedColumn']].values.tolist()
+        return tables_dict, pks_dict, fk_graph
+
 
 class MSSQLDatabase(Database):
 
     def __init__(self, target_schema: str, database: Optional[str] = None, include_all_schemas: bool = False):
+        super().__init__(target_schema, database, include_all_schemas)
         self.username = MSSQL_READ_USER
         self.password = MSSQL_READ_PASS
         self.host = MSSQL_HOST
@@ -46,7 +87,10 @@ class MSSQLDatabase(Database):
         self.target_schema = target_schema
         self.include_all_schemas = include_all_schemas
 
-        self.connection_url = engine.URL.create(
+        self.connection_url = self.get_connection_url()
+
+    def get_connection_url(self):
+        return engine.URL.create(
             MSSQL_DBAPI,
             username=self.username,
             password=self.password,
@@ -119,6 +163,7 @@ class MSSQLDatabase(Database):
 class MYSQLDatabase(Database):
 
     def __init__(self, target_schema: str):
+        super().__init__(target_schema)
         self.username = MYSQL_USER
         self.password = MYSQL_PASS
         self.host = MYSQL_HOST
@@ -130,7 +175,10 @@ class MYSQLDatabase(Database):
 
         if not self.database:
             raise ValueError("Database missing!")
-        self.connection_url = engine.URL.create(
+        self.connection_url = self.get_connection_url()
+
+    def get_connection_url(self):
+        return engine.URL.create(
             MYSQL_DBAPI,
             username=self.username,
             password=self.password,
@@ -166,3 +214,24 @@ class MYSQLDatabase(Database):
                     WHERE
                         CONSTRAINT_SCHEMA = '{self.target_schema}'
                         AND REFERENCED_TABLE_NAME IS NOT NULL;"""
+
+
+def get_database(sql_type: str, target_schema: str, database: Optional[str] = None,
+                 include_all_schemas: bool = False) -> Database:
+    database_classes = {
+        "mssql": MSSQLDatabase,
+        "mysql": MYSQLDatabase
+    }
+
+    database_class = database_classes.get(sql_type)
+    if not database_class:
+        raise ValueError(f"Unsupported database type: {sql_type}")
+
+    # Prepare keyword arguments according to the class requirements
+    kwargs = {"target_schema": target_schema}
+    if sql_type == "mssql":
+        kwargs["database"] = database
+        kwargs["include_all_schemas"] = include_all_schemas
+
+    # Instantiate the database class with appropriate kwargs
+    return database_class(**kwargs)

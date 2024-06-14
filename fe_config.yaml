@@ -1,0 +1,18 @@
+# please carefully chose your type. ML experiments will be run based on the pipeline type value
+denormalization:
+  denormalization_woe:
+    - name: 'custom_transformers.woe.WOEEncoder'
+wordification:
+  wordification_tfidf:
+    - name: 'sklearn.feature_extraction.text.TfidfVectorizer'
+      params:
+        max_features: 30000
+        binary: True
+  wordification_MiniLM-L6-v2:
+    - name: 'rdm.custom_transformers.sentence_transformer_encoder.SentenceTransformerEncoder'
+      params:
+        model_name: all-MiniLM-L6-v2
+#  wordification_MiniLM-L12-v2:
+#    - name: 'rdm.custom_transformers.sentence_transformer_encoder.SentenceTransformerEncoder'
+#      params:
+#        model_name: all-MiniLM-L12-v2

@@ -2,7 +2,7 @@ import pandas as pd
 import yaml
 from sklearn.model_selection import StratifiedKFold
 from sklearn.pipeline import Pipeline
-from skopt import BayesSearchCV  # Import BayesSearchCV
+from skopt import BayesSearchCV
 from skopt.space import Real, Integer, Categorical
 
 from sklearn.metrics import make_scorer, accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
@@ -55,7 +55,7 @@ class MLExperiment:
 
         stratified_cv = StratifiedKFold(n_splits=10)
         bayes_search = BayesSearchCV(classifier, search_spaces=search_spaces,
-                                     n_iter=50, cv=stratified_cv, scoring=scoring, refit="roc_auc", verbose=10, n_jobs=-1)
+                                     n_iter=20, cv=stratified_cv, scoring=scoring, refit="roc_auc", verbose=10, n_jobs=-1)
 
         steps.append(('classifier', bayes_search))
         return Pipeline(steps)

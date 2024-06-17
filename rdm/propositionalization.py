@@ -6,7 +6,7 @@ from tqdm import tqdm
 import logging
 import queue
 
-from utils import OrderedDictList
+from rdm.utils import OrderedDictList
 
 # TODO: implement feature engineering and feature selection
 # TODO: include flexibility for custom steps... this can be included maybe in new class

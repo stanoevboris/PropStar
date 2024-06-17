@@ -1,7 +1,7 @@
 # please carefully chose your type. ML experiments will be run based on the pipeline type value
 denormalization:
   denormalization_woe:
-    - name: 'custom_transformers.woe.WOEEncoder'
+    - name: 'rdm.custom_transformers.woe.WOEEncoder'
 wordification:
   wordification_tfidf:
     - name: 'sklearn.feature_extraction.text.TfidfVectorizer'

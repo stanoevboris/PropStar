@@ -5,7 +5,7 @@ import time
 import numpy as np
 import pandas as pd
 
-from db_utils import get_database
+from rdm.db_utils import get_database
 from rdm.ml_exeriments import MLExperiment
 from rdm.propositionalization import PropConfig, Wordfication, Denormalization
 
@@ -28,6 +28,9 @@ class DatasetProcessor:
         self.dataset_config = DatasetConfig(dataset_info)
         self.args = args
         self.initialize_logging()
+        self.tables = None
+        self.primary_keys = None
+        self.foreign_keys = None
 
     @staticmethod
     def initialize_logging():
@@ -44,10 +47,10 @@ class DatasetProcessor:
 
         return tables
 
-    def preprocess_tables(self, target_schema: str, tables: dict) -> dict:
-        tables = self.clean_dataframes(tables=tables)
-        if target_schema == 'Sales':
-            soh = tables['SalesOrderHeader'].copy()
+    def preprocess_tables(self) -> None:
+        self.tables = self.clean_dataframes(tables=self.tables)
+        if self.dataset_config.target_schema == 'Sales':
+            soh = self.tables['SalesOrderHeader'].copy()
             soh['previous_order_date'] = soh.groupby('CustomerID')['OrderDate'].shift(1)
             soh['days_without_order'] = (soh['OrderDate'] - soh['previous_order_date']).dt.days.fillna(0)
             cut_off_date = soh['OrderDate'].max() - pd.DateOffset(days=180)
@@ -69,18 +72,19 @@ class DatasetProcessor:
             # soh['SalesPersonID'] = soh['churn'].astype(np.int64)
             soh.drop(['previous_order_date', 'days_without_order'], axis=1, inplace=True)
 
-            tables['SalesOrderHeader'] = soh.copy()
-        elif target_schema == 'imdb_ijs':
-            from imdb_movies_constants import top_250_movies, bottom_100_movies
-            movies = tables['movies'].copy()
+            self.tables['SalesOrderHeader'] = soh.copy()
+        elif self.dataset_config.target_schema == 'imdb_ijs':
+            from rdm.imdb_movies_constants import top_250_movies, bottom_100_movies
+            movies = self.tables['movies'].copy()
             positive_df = pd.DataFrame(top_250_movies, columns=["name", "year", "label"])
             negative_df = pd.DataFrame(bottom_100_movies, columns=["name", "year", "label"])
             result_df = pd.concat([positive_df, negative_df], ignore_index=True)
             result_df["year"] = result_df["year"].astype(int)
             result_with_original_data = movies.merge(result_df, on=["name", "year"], how="inner")
             movies = result_with_original_data[["id", "name", "year", "label"]]
-            tables["movies"] = movies.copy()
-        return tables
+            self.tables["movies"] = movies.copy()
+        elif self.dataset_config.target_schema == 'AdventureWorks2014':
+            self.foreign_keys.remove(['SalesOrderHeader', 'SalesPersonID', 'SalesPerson', 'BusinessEntityID'])
 
     def process(self):
         logging.info(f"Processing dataset: {self.dataset_config.target_schema},"
@@ -91,9 +95,9 @@ class DatasetProcessor:
                                      database=self.dataset_config.database,
                                      target_schema=self.dataset_config.target_schema,
                                      include_all_schemas=self.dataset_config.include_all_schemas)
-            tables, primary_keys, foreign_keys = db_object.get_data()
-            tables = self.preprocess_tables(target_schema=self.dataset_config.target_schema, tables=tables)
-            self.evaluate(tables, primary_keys, foreign_keys)
+            self.tables, self.primary_keys, self.foreign_keys = db_object.get_data()
+            self.preprocess_tables()
+            self.evaluate(self.tables, self.primary_keys, self.foreign_keys)
         finally:
             logging.info(f"Execution time: {time.time() - start_time:.4f} seconds")
 

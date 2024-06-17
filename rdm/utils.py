@@ -1,18 +1,15 @@
 import os
-import csv
 import yaml
 from collections import OrderedDict, Counter
 
 import numpy as np
 import logging
 
-import pandas as pd
 from imblearn.combine import SMOTEENN
 from imblearn.over_sampling import SMOTE
 from imblearn.under_sampling import EditedNearestNeighbours
 from sklearn.preprocessing import KBinsDiscretizer
-from itertools import product
-import constants
+from deprecated import constants
 
 PROJECT_DIR = os.path.dirname(__file__)
 
@@ -49,30 +46,6 @@ def load_yaml_config(config_file: str):
     except FileNotFoundError:
         logging.error("datasets.yaml file not found.")
         return
-
-
-def generate_classifier_params(config_file: str):
-    config = load_yaml_config(config_file)
-
-    for classifier in config['classifiers']:
-        for param_set in classifier['params']:
-            for combination in generate_classifier_combinations(param_set):
-                yield classifier['name'], combination
-
-
-def generate_classifier_combinations(params):
-    """
-    Generate all combinations of parameter values.
-
-    Parameters:
-    - params: A dictionary where keys are parameter names and values are lists of parameter values.
-
-    Returns:
-    - A list of dictionaries, each representing a unique combination of parameter values.
-    """
-    keys = params.keys()
-    values_combinations = list(product(*params.values()))
-    return [dict(zip(keys, values)) for values in values_combinations]
 
 
 def log_dataset_info(train_features, test_features):
@@ -192,100 +165,6 @@ def interpolate_nans(X):
         mask_j = np.isnan(X[:, j])
         X[mask_j, j] = np.mean(np.flatnonzero(X))
     return X
-
-
-def calculate_stats(metric_name, scores):
-    stats = {
-        f'min_score_{metric_name}': min(scores),
-        f'max_score_{metric_name}': max(scores),
-        f'mean_score_{metric_name}': np.mean(scores),
-        f'std_score_{metric_name}': np.std(scores),
-    }
-    return stats
-
-
-def save_results(args, scores, grid_dict):
-    results_dir_path = os.path.join(PROJECT_DIR, 'results')
-    os.makedirs(results_dir_path, exist_ok=True)
-    learner_results_file_path = os.path.join(results_dir_path, args.results_file)
-
-    # Convert args to dictionary and filter relevant keys from grid_dict
-    args_dict = vars(args).copy()
-    all_columns = get_all_columns()
-    # Combine all dictionaries: args_dict, classifier_params, scores, and additional metrics
-    combined_dict = {**all_columns,
-                     'labels_occurrence_percentage': grid_dict.get('labels_occurrence_percentage', '/'),
-                     'total_execution_time': grid_dict.get('total_execution_time', '/')}
-    combined_dict = {k: combined_dict[k] for k in sorted(combined_dict)}
-
-    # Calculate stats for each metric and merge them into combined_dict
-    for metric in scores:
-        metric_stats = calculate_stats(metric_name=metric, scores=scores[metric])
-        combined_dict.update(metric_stats)
-
-    combined_dict.update(args_dict)
-    combined_dict.update(grid_dict)
-
-    combined_dict = {key: value if value is not None else '/' for key, value in combined_dict.items()}
-
-    # Write to CSV
-    with open(learner_results_file_path, "a", newline='') as csvfile:
-        file_empty_check = os.stat(learner_results_file_path).st_size == 0
-        headers = list(combined_dict.keys())
-        writer = csv.DictWriter(csvfile, delimiter=',', fieldnames=headers)
-
-        if file_empty_check:
-            writer.writeheader()
-
-        writer.writerow(combined_dict)
-    logging.info(f"Finished saving results for {combined_dict['dataset']}")
-
-
-def clean_dataframes(tables: dict):
-    for table_name, df in tables.items():
-        # remove all columns with null values percentage above 80%
-        tables[table_name] = df.loc[:, df.isnull().mean() < .8]
-
-    return tables
-
-
-def preprocess_tables(target_schema: str, tables: dict) -> dict:
-    tables = clean_dataframes(tables=tables)
-    if target_schema == 'Sales':
-        soh = tables['SalesOrderHeader'].copy()
-        soh['previous_order_date'] = soh.groupby('CustomerID')['OrderDate'].shift(1)
-        soh['days_without_order'] = (soh['OrderDate'] - soh['previous_order_date']).dt.days.fillna(0)
-        cut_off_date = soh['OrderDate'].max() - pd.DateOffset(days=180)
-
-        def calculate_churn(row):
-            if row['OrderDate'] >= cut_off_date:
-                return None
-            elif row['days_without_order'] <= 180:
-                return 0
-            else:
-                return 1
-
-        soh['churn'] = soh.apply(calculate_churn, axis=1)
-
-        # Reset the index
-        soh = soh[soh['churn'].notna()]
-        soh.reset_index(drop=True, inplace=True)
-        soh['churn'] = soh['churn'].astype(np.int64)
-        # soh['SalesPersonID'] = soh['churn'].astype(np.int64)
-        soh.drop(['previous_order_date', 'days_without_order'], axis=1, inplace=True)
-
-        tables['SalesOrderHeader'] = soh.copy()
-    elif target_schema == 'imdb_ijs':
-        from imdb_movies_constants import top_250_movies, bottom_100_movies
-        movies = tables['movies'].copy()
-        positive_df = pd.DataFrame(top_250_movies, columns=["name", "year", "label"])
-        negative_df = pd.DataFrame(bottom_100_movies, columns=["name", "year", "label"])
-        result_df = pd.concat([positive_df, negative_df], ignore_index=True)
-        result_df["year"] = result_df["year"].astype(int)
-        result_with_original_data = movies.merge(result_df, on=["name", "year"], how="inner")
-        movies = result_with_original_data[["id", "name", "year", "label"]]
-        tables["movies"] = movies.copy()
-    return tables
 
 
 def is_imbalanced(labels, threshold=0.2) -> bool:

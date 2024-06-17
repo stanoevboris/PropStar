@@ -9,7 +9,7 @@ from threading import Lock
 from constants import FEATURE_FUNC, CLASSIFIER_FUNC, CLASSIFIER_GRID
 from deprecated.learning import preprocess_and_split
 from deprecated.propositionalization import get_data
-from utils import save_results, preprocess_tables, setup_directory, generate_classifier_params, log_dataset_info, \
+from rdm.utils import save_results, preprocess_tables, setup_directory, generate_classifier_params, log_dataset_info, \
     load_yaml_config
 
 logging.basicConfig(format='%(asctime)s - %(message)s',
@@ -200,7 +200,7 @@ def main():
 
     setup_directory("../tmp")
 
-    config = load_yaml_config('../datasets.yaml')
+    config = load_yaml_config('../rdm/datasets.yaml')
 
     for dataset in config['datasets']:
         if not dataset.get('enabled', True):

@@ -1,9 +1,8 @@
 import argparse
 import yaml
 import subprocess
-from itertools import product
 
-from utils import generate_classifier_combinations
+from rdm.utils import generate_classifier_combinations
 
 
 def run_hyperparameter_tuning_yaml(config_file, results_file):

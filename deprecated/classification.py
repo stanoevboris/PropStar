@@ -1,5 +1,5 @@
-from neural import *
-from learning import *
+from deprecated.neural import *
+from deprecated.learning import *
 
 from sklearn.metrics import roc_auc_score, accuracy_score, f1_score
 from tqdm import tqdm
@@ -24,7 +24,6 @@ def examine_batch_predictions(test_features_indexes,
     for key in tqdm(stats):
         pred = max(stats[key], key=lambda k: stats[key].get(k) if k in unique_classes else -1)
         pred_score = np.average(stats[key]["pred_score"][pred])
-
         count_values_by_class = [stats[key][value] for value in unique_classes]
         if 0 in count_values_by_class:
             custom_pred_score = pred_score  # since the other class was not predicted once,

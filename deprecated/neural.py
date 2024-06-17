@@ -138,7 +138,8 @@ class E2EDNN:
         self.optimizer = None
         self.num_params = None
 
-    def init_all(self, model, init_func, *params, **kwargs):
+    @staticmethod
+    def init_all(model, init_func, *params, **kwargs):
         for p in model.parameters():
             init_func(p, *params, **kwargs)
 

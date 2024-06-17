@@ -1,68 +1,70 @@
 import itertools
 import queue
 from collections import defaultdict
-from typing import Optional
 
 import numpy as np
 import pandas as pd
 import networkx as nx
 from sklearn.feature_extraction.text import TfidfVectorizer, HashingVectorizer
+from sklearn.preprocessing import OneHotEncoder
 from tqdm import tqdm
 
-from utils import OrderedDictList, is_imbalanced, balance_dataset_with_smote
+# from utils import OrderedDictList, is_imbalanced, balance_dataset_with_smote
 from vectorizers import conjunctVectorizer
 
-from woe import WOEEncoder
+from rdm.custom_transformers.woe import WOEEncoder
 
 import logging
-import sqlalchemy as sa
-from db_utils import MSSQLDatabase, MYSQLDatabase
-
-logging.basicConfig(format='%(asctime)s - %(message)s',
-                    datefmt='%d-%b-%y %H:%M:%S')
-logging.getLogger().setLevel(logging.INFO)
-
-SQL_TYPE_DICT = {
-    "mssql": MSSQLDatabase,
-    "mysql": MYSQLDatabase
-}
 
 
-def get_data(sql_type: str, database: Optional[str], target_schema: str, include_all_schemas: Optional[bool]):
-    db_object = SQL_TYPE_DICT[sql_type]
-
-    kwargs = {
-        "target_schema": target_schema
-    }
-
-    if sql_type == "mssql":
-        kwargs["database"] = database
-        kwargs["include_all_schemas"] = include_all_schemas
-
-    db = db_object(**kwargs)
-    engine = sa.create_engine(db.connection_url, echo=True)
-    tables_dict = {}
-    with engine.connect() as connection:
-        schemas = [target_schema] if not include_all_schemas else sa.inspect(engine).get_schema_names()
-
-        for schema in schemas:
-            tables = sa.inspect(engine).get_table_names(schema=schema)
-            for table in tables:
-                tables_dict[table] = db.get_table(schema=schema,
-                                                  table_name=table,
-                                                  connection=connection)
-
-        logging.info(f"Total tables read: {len(tables_dict)}")
-        logging.info(f"Tables read: {list(tables_dict.keys())}")
-
-        pks = pd.read_sql(sa.text(db.get_primary_keys()), connection)
-        fks = pd.read_sql(sa.text(db.get_foreign_keys()), connection)
-
-    # Conversion for PKs and FKs in order to match the source code format of the variables
-    pks_dict = dict(zip(pks['TableName'], pks['PrimaryKeyColumn']))
-    fk_graph = fks[['ChildTable', 'ChildColumn', 'ReferencedTable', 'ReferencedColumn']].values.tolist()
-    return tables_dict, pks_dict, fk_graph
-
+# import sqlalchemy as sa
+# from db_utils import MSSQLDatabase, MYSQLDatabase
+#
+# logging.basicConfig(format='%(asctime)s - %(message)s',
+#                     datefmt='%d-%b-%y %H:%M:%S')
+# logging.getLogger().setLevel(logging.INFO)
+#
+# SQL_TYPE_DICT = {
+#     "mssql": MSSQLDatabase,
+#     "mysql": MYSQLDatabase
+# }
+#
+#
+# def get_data(sql_type: str, database: Optional[str], target_schema: str, include_all_schemas: Optional[bool]):
+#     db_object = SQL_TYPE_DICT[sql_type]
+#
+#     kwargs = {
+#         "target_schema": target_schema
+#     }
+#
+#     if sql_type == "mssql":
+#         kwargs["database"] = database
+#         kwargs["include_all_schemas"] = include_all_schemas
+#
+#     db = db_object(**kwargs)
+#     engine = sa.create_engine(db.connection_url, echo=True)
+#     tables_dict = {}
+#     with engine.connect() as connection:
+#         schemas = [target_schema] if not include_all_schemas else sa.inspect(engine).get_schema_names()
+#
+#         for schema in schemas:
+#             tables = sa.inspect(engine).get_table_names(schema=schema)
+#             for table in tables:
+#                 tables_dict[table] = db.get_table(schema=schema,
+#                                                   table_name=table,
+#                                                   connection=connection)
+#
+#         logging.info(f"Total tables read: {len(tables_dict)}")
+#         logging.info(f"Tables read: {list(tables_dict.keys())}")
+#
+#         pks = pd.read_sql(sa.text(db.get_primary_keys()), connection)
+#         fks = pd.read_sql(sa.text(db.get_foreign_keys()), connection)
+#
+#     # Conversion for PKs and FKs in order to match the source code format of the variables
+#     pks_dict = dict(zip(pks['TableName'], pks['PrimaryKeyColumn']))
+#     fk_graph = fks[['ChildTable', 'ChildColumn', 'ReferencedTable', 'ReferencedColumn']].values.tolist()
+#     return tables_dict, pks_dict, fk_graph
+#
 
 def get_table_keys(quadruplet):
     """
@@ -102,7 +104,7 @@ def generate_relational_words(tables,
 
     for foreign_key in fkg:
 
-        # foreing key mapping
+        # foreign key mapping
         t1, k1, t2, k2 = foreign_key
 
         if t1 == target_table:
@@ -128,15 +130,15 @@ def generate_relational_words(tables,
     target_classes = core_table[target_attribute]
 
     # This is a remnant of one of the experiment, left here for historical reasons :)
-    if target_attribute == "Delka_hospitalizace":
-        tars = []
-        for tc in target_classes:
-            if int(tc) >= 10:
-                tars.append(0)
-            else:
-                tars.append(1)
-        target_classes = pd.DataFrame(np.array(tars))
-        print(np.sum(tars) / len(target_classes))
+    # if target_attribute == "Delka_hospitalizace":
+    #     tars = []
+    #     for tc in target_classes:
+    #         if int(tc) >= 10:
+    #             tars.append(0)
+    #         else:
+    #             tars.append(1)
+    #     target_classes = pd.DataFrame(np.array(tars))
+    #     print(np.sum(tars) / len(target_classes))
 
     total_witems = set()
     num_witems = 0
@@ -147,14 +149,14 @@ def generate_relational_words(tables,
                            total=core_table.shape[0]):
         for i in range(len(row)):
             column_name = row.index[i]
-            if column_name != target_attribute and not column_name in core_foreign_keys:
+            if column_name != target_attribute and column_name not in core_foreign_keys:
                 witem = "-".join([target_table, column_name, str(row.iloc[i])])
                 feature_vectors[index].append(witem)
                 num_witems += 1
                 total_witems.add(witem)
 
     logging.info("Traversing other tables ..")
-    for core_fk in core_foreign_keys:  # this is normaly a single key.
+    for core_fk in core_foreign_keys:  # this is normally a single key.
         bfs_traversal = dict(
             nx.bfs_successors(fk_graph, (target_table, core_fk)))
 
@@ -166,7 +168,6 @@ def generate_relational_words(tables,
             to_traverse = queue.Queue()
             to_traverse.put(target_table)  # seed table
             max_depth = 2
-            tables_considered = 0
             parsed_tables = set()
 
             # Perform simple search
@@ -183,7 +184,7 @@ def generate_relational_words(tables,
                 for succ in successor_tables:
                     to_traverse.put(succ)
                 for table in successor_tables:
-                    if (table) in parsed_tables:
+                    if table in parsed_tables:
                         continue
                     parsed_tables.add(table)
                     first_table_name, first_table_key = origin, core_fk
@@ -210,7 +211,7 @@ def generate_relational_words(tables,
                     # The second case
                     trow = second_table[second_table[next_table_key] == key_to_compare]
                     for x in trow.columns:
-                        if not x in all_foreign_keys and x != target_attribute:
+                        if x not in all_foreign_keys and x != target_attribute:
                             for value in trow[x]:
                                 witem = "-".join(
                                     str(x)
@@ -293,16 +294,21 @@ def relational_words_to_matrix(fw,
 
     elif vectorization_type == "sklearn_tfidf" \
             or vectorization_type == "sklearn_binary" \
-            or vectorization_type == "sklearn_hash":
+            or vectorization_type == "sklearn_hash" \
+            or vectorization_type == "sklearn_onehot":
 
         if vectorization_type == "sklearn_tfidf":
             vectorizer = TfidfVectorizer(max_features=max_features,
                                          binary=True)
         elif vectorization_type == "sklearn_binary":
             vectorizer = TfidfVectorizer(max_features=max_features,
-                                         binary=False)
+                                         binary=True,
+                                         use_idf=False,
+                                         norm=None)
         elif vectorization_type == "sklearn_hash":
             vectorizer = HashingVectorizer()
+        elif vectorization_type == "sklearn_onehot":
+            vectorizer = OneHotEncoder(sparse_output=False)
 
         for k, v in fw.items():
             docs.append(" ".join(v))

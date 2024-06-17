@@ -7,10 +7,10 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_compl
 from threading import Lock
 
 from constants import FEATURE_FUNC, CLASSIFIER_FUNC, CLASSIFIER_GRID
-from learning import preprocess_and_split
-from propositionalization import get_data
+from deprecated.learning import preprocess_and_split
+from deprecated.propositionalization import get_data
 from utils import save_results, preprocess_tables, setup_directory, generate_classifier_params, log_dataset_info, \
-    calculate_positive_class_percentage, load_yaml_config
+    load_yaml_config
 
 logging.basicConfig(format='%(asctime)s - %(message)s',
                     datefmt='%d-%b-%y %H:%M:%S')
@@ -198,9 +198,9 @@ def evaluate_dataset_fold(classifier_name, train_index, test_index, tables, targ
 def main():
     args = parse_arguments()
 
-    setup_directory("tmp")
+    setup_directory("../tmp")
 
-    config = load_yaml_config('datasets.yaml')
+    config = load_yaml_config('../datasets.yaml')
 
     for dataset in config['datasets']:
         if not dataset.get('enabled', True):

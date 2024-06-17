@@ -168,13 +168,13 @@ class StarSpaceLearner:
                               output_model="./tmp/storedModel"):
 
         if train:
-            train_file = "./tmp/train_data.txt"
+            train_file = "../tmp/train_data.txt"
             to_execute = "./bin/starspace train {} -verbose 0 -trainFile ".format(
                 self.parameter_string) + train_file + " -model " + output_model
             os.system(to_execute)
         else:
 
-            test_file = "tmp\\test_data.txt"
+            test_file = "../tmp/test_data.txt"
             to_execute = """
             ./bin/query_predict {modelfile} 1 < {testfile}
             """.format(modelfile="tmp/storedModel",

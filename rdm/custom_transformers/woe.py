@@ -69,7 +69,7 @@ class WOEEncoder(BaseEstimator, TransformerMixin):
             X_encoded = encoder.fit_transform(X, y)
         """
 
-    def __init__(self, bins=10, min_samples=0.05, retain_only_predictive_features=False,
+    def __init__(self, bins=10, min_samples=0.05, retain_only_predictive_features=True,
                  regularization=1.0, randomized=False, sigma=0.05, drop_invariant=False, random_state=42):
         self.bins = bins
         self.min_samples = min_samples
@@ -82,7 +82,7 @@ class WOEEncoder(BaseEstimator, TransformerMixin):
         self.drop_invariant = drop_invariant
         self.random_state = random_state
 
-    def _bin_data(self, series, y):
+    def _bin_data(self, series, y) -> pd.DataFrame:
         """Bins the data and calculates aggregated counts and sums."""
         if series.dtype.kind in 'bifc' and len(series.unique()) > self.bins:
             binned_series = pd.qcut(series, self.bins, duplicates='drop')
@@ -202,7 +202,7 @@ class WOEEncoder(BaseEstimator, TransformerMixin):
                 X_transformed[feature] += noise
 
         logging.info("Transform method completed.")
-        return X_transformed
+        return X_transformed.to_numpy()
 
     def fit_transform(self, X, y=None, **kwargs):
         """
@@ -235,8 +235,7 @@ class WOEEncoder(BaseEstimator, TransformerMixin):
         original_feature_count = self.iv.shape[0]
 
         # Filter the IV DataFrame for features within the specified IV range
-        # filtered_iv = self.iv[(self.iv['IV'] >= 0.02) & (self.iv['IV'] <= 0.5)]
-        filtered_iv = self.iv[(self.iv['IV'] >= 1.6)]
+        filtered_iv = self.iv[(self.iv['IV'] >= 0.02) & (self.iv['IV'] <= 0.5)]
 
         # Update the self.iv with the filtered DataFrame
         self.iv = filtered_iv

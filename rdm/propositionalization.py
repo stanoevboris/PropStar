@@ -224,8 +224,7 @@ class Denormalization(Propositionalization):
         Method that will drop all columns related to primary key or foreign key
         """
         available_keys = {key for key in self.config.all_foreign_keys.union(self.config.primary_keys.values())
-                          if key in features.columns and key != self.config.primary_keys.get(self.config.target_table,
-                                                                                             None)}
+                          if key in features.columns}
 
         cols_to_drop = [col for col in features.columns if col in available_keys or col.endswith('__y')]
         features.drop(cols_to_drop, axis=1, inplace=True)
@@ -234,6 +233,7 @@ class Denormalization(Propositionalization):
 
     def prepare_labels(self, features: pd.DataFrame) -> None:
         self.config.target_classes = features[self.config.target_attribute]
+        features.drop(self.config.target_attribute, axis=1, inplace=True)
 
     def run(self) -> [pd.DataFrame, pd.Series]:
         features_data = self.traverse_and_fetch_related_data()

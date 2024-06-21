@@ -1,9 +1,11 @@
 import pandas as pd
+import numpy as np
 import yaml
 from sklearn.model_selection import StratifiedKFold
 from sklearn.pipeline import Pipeline
 from skopt import BayesSearchCV
 from skopt.space import Real, Integer, Categorical
+from imblearn.pipeline import Pipeline as ImbPipeline
 
 from sklearn.metrics import make_scorer, accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
 
@@ -36,6 +38,7 @@ class MLExperiment:
         class_path, class_name = classifier_info['class'].rsplit('.', 1)
         class_module = __import__(class_path, fromlist=[class_name])
         classifier = getattr(class_module, class_name)()
+
         scoring = {
             'accuracy': make_scorer(accuracy_score),
             'f1': make_scorer(f1_score),
@@ -43,6 +46,7 @@ class MLExperiment:
             'recall': make_scorer(recall_score),
             'roc_auc': make_scorer(roc_auc_score, needs_threshold=True)
         }
+
         param_grid = classifier_info['param_grid']
         search_spaces = {}
         for param, values in param_grid.items():
@@ -54,11 +58,11 @@ class MLExperiment:
                 search_spaces[param] = Categorical(values)
 
         stratified_cv = StratifiedKFold(n_splits=10)
-        bayes_search = BayesSearchCV(classifier, search_spaces=search_spaces,
-                                     n_iter=20, cv=stratified_cv, scoring=scoring, refit="roc_auc", verbose=10, n_jobs=-1)
+        bayes_search = BayesSearchCV(classifier, search_spaces=search_spaces, n_iter=10, cv=stratified_cv,
+                                     scoring=scoring, refit="roc_auc", verbose=10, n_jobs=3)
 
         steps.append(('classifier', bayes_search))
-        return Pipeline(steps)
+        return ImbPipeline(steps)
 
     def run_experiments(self, X, y):
         for pipeline_name, feature_steps in self.feature_config[self.prop_method].items():

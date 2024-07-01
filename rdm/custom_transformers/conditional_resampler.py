@@ -12,6 +12,7 @@ class ConditionalResampler(BaseEstimator):
         self.imbalance_threshold = imbalance_threshold
         self.resampler_params = resampler_params
         self.resampler = self._get_resampler_instance()
+        self.need_resample = None
 
     def _get_resampler_instance(self):
         module_name, class_name = self.resampler_class_name.rsplit('.', 1)
@@ -22,11 +23,12 @@ class ConditionalResampler(BaseEstimator):
     def fit_resample(self, X, y):
         class_counts = Counter(y)
         total_count = sum(class_counts.values())
-        majority_class = max(class_counts, key=class_counts.get)
-        minority_class = min(class_counts, key=class_counts.get)
-        imbalance_ratio = class_counts[minority_class] / total_count
+        majority_class_count = max(class_counts.values())
 
-        if imbalance_ratio > self.imbalance_threshold:
+        imbalance_ratios = {cls: count / majority_class_count for cls, count in class_counts.items()}
+        minority_class_ratio = min(imbalance_ratios.values())
+
+        if minority_class_ratio > self.imbalance_threshold:
             # Classes are not significantly imbalanced
             self.need_resample = False
             return X, y

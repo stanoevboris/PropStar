@@ -78,7 +78,7 @@ class Propositionalization(ABC):
         """Initializes the queue with successor tables of the target table."""
         to_traverse = queue.Queue()
         successor_tables = traversal_map.get(self.config.target_table, [])
-        logging.info(f"Successor Tables: {successor_tables}")
+        # logging.info(f"Successor Tables: {successor_tables}")
         for source_table in successor_tables:
             to_traverse.put((self.config.target_table, 1, source_table))  # queue stores tuples of (table name, depth)
         return to_traverse
@@ -88,10 +88,10 @@ class Propositionalization(ABC):
         if current_depth < self.config.max_depth:
             future_tables = traversal_map.get(current_table, [])
             for next_table in future_tables:
-                to_traverse.put((next_table, current_depth + 1, current_table))
+                to_traverse.put((current_table, current_depth + 1, next_table))
 
-            logging.info(f"Queue State: {list(to_traverse.queue)}")
-            logging.info(f"Future tables from {current_table}: {future_tables}")
+            # logging.info(f"Queue State: {list(to_traverse.queue)}")
+            # logging.info(f"Future tables from {current_table}: {future_tables}")
         return to_traverse
 
     @abstractmethod
@@ -134,8 +134,8 @@ class Wordfication(Propositionalization):
 
                 if current_table not in parsed_tables:
                     parsed_tables.add(current_table)
-                    logging.info(f"Currently applying wordification over table: {current_table} "
-                                 f"at depth {current_depth}")
+                    # logging.info(f"Currently applying wordification over table: {current_table} "
+                    #              f"at depth {current_depth}")
                     edge_data = self.fk_graph.get_edge_data(parent_table, current_table)
                     source_column, target_column = edge_data['source_column'], edge_data['target_column']
                     if source_column not in self.config.core_table:
@@ -198,18 +198,15 @@ class Denormalization(Propositionalization):
                                                     how='inner',
                                                     left_on=source_column,
                                                     right_on=target_column,
-                                                    suffixes=(None, f'__y'))
+                                                    suffixes=(None, f'__{current_table}'))
 
                 # Extract keys from foreign and primary keys, excluding core foreign keys
                 all_keys = set(itertools.chain(self.config.all_foreign_keys, self.config.primary_keys.values()))
                 excluded_keys = all_keys - self.config.core_foreign_keys
 
                 # Append '__y' suffix and filter by presence in features_data.columns
-                columns_to_drop = {f"{key}__y" for key in excluded_keys if f"{key}__y" in features_data.columns}
+                columns_to_drop = {f"{key}__{current_table}" for key in excluded_keys if f"{key}__{current_table}" in features_data.columns}
 
-                special_case_keys = {key for key in self.config.all_foreign_keys
-                                     if key not in self.config.core_foreign_keys and key in features_data.columns}
-                columns_to_drop |= special_case_keys
                 features_data.drop(list(columns_to_drop), axis=1, inplace=True)
 
                 to_traverse = self.fill_queue(current_table=current_table,
@@ -226,7 +223,8 @@ class Denormalization(Propositionalization):
         available_keys = {key for key in self.config.all_foreign_keys.union(self.config.primary_keys.values())
                           if key in features.columns}
 
-        cols_to_drop = [col for col in features.columns if col in available_keys or col.endswith('__y')]
+        # cols_to_drop = [col for col in features.columns if col in available_keys and col.endswith('__y')]
+        cols_to_drop = [col for col in available_keys if col in features.columns]
         features.drop(cols_to_drop, axis=1, inplace=True)
 
         return features

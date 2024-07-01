@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -24,9 +25,10 @@ class DatasetConfig:
 
 
 class DatasetProcessor:
-    def __init__(self, dataset_info, args):
+    def __init__(self, dataset_info: Dict, args, problem_type: str):
         self.dataset_config = DatasetConfig(dataset_info)
         self.args = args
+        self.problem_type = problem_type
         self.initialize_logging()
         self.tables = None
         self.primary_keys = None
@@ -85,6 +87,18 @@ class DatasetProcessor:
             self.tables["movies"] = movies.copy()
         elif self.dataset_config.target_schema == 'AdventureWorks2014':
             self.foreign_keys.remove(['SalesOrderHeader', 'SalesPersonID', 'SalesPerson', 'BusinessEntityID'])
+        elif self.dataset_config.target_schema == 'financial' and self.problem_type == 'binary_classification':
+            loan = self.tables['loan'].copy()
+            loan = loan[loan['status'].isin(['A', 'B'])]
+            self.tables['loan'] = loan.copy()
+        elif self.dataset_config.target_schema == 'ftp':
+            session = self.tables['session'].copy()
+            session = session[session['gender'].isin(['male', 'female'])]
+            self.tables['session'] = session.copy()
+        elif self.dataset_config.target_schema == 'Hockey':
+            master = self.tables['Master'].copy()
+            master = master[master['shootCatch'].isin(['L', 'R', 'B'])]
+            self.tables['Master'] = master.copy()
 
     def process(self):
         logging.info(f"Processing dataset: {self.dataset_config.target_schema},"
@@ -99,13 +113,13 @@ class DatasetProcessor:
             self.preprocess_tables()
             self.evaluate(self.tables, self.primary_keys, self.foreign_keys)
         finally:
-            logging.info(f"Execution time: {time.time() - start_time:.4f} seconds")
+            end_time = time.time()
+            logging.info(f"Execution time: {end_time - start_time:.4f} seconds")
 
     def propositionalize(self, method, tables, primary_keys, foreign_keys, target_table, target_attribute):
         methods = {
             "wordification": Wordfication,
             "denormalization": Denormalization
-
         }
         prop_config = PropConfig(tables=tables, primary_keys=primary_keys, foreign_keys=foreign_keys,
                                  target_table=target_table, target_attribute=target_attribute,
@@ -127,7 +141,8 @@ class DatasetProcessor:
                                                      target_attribute=self.dataset_config.target_attribute)
             labels = self.encode_labels(labels)
             exp = MLExperiment(feature_config_path=self.args.fe_config,
-                               classifier_config_path=self.args.classifier_config, prop_method=method)
+                               classifier_config_path=self.args.classifier_config, prop_method=method,
+                               problem_type=self.problem_type)
             exp.run_experiments(features, labels)
             results = exp.summarize_results(dataset=self.dataset_config.target_schema)
             # Check if the file exists

@@ -31,7 +31,8 @@ class E2EDatasetLoader(Dataset):
     def __init__(self, features, targets=None):
         # Handle pandas DataFrame
         if isinstance(features, pd.DataFrame):
-            features = features.apply(pd.to_numeric, errors='ignore')
+            # TODO: in future we need to excplicitly catch the errors from the apply
+            features = features.apply(pd.to_numeric)
             self.features = torch.tensor(features.values, dtype=torch.float32)
         # Handle numpy arrays
         elif isinstance(features, np.ndarray):
@@ -174,8 +175,9 @@ class PropDRM(BaseEstimator, ClassifierMixin):
                 self.optimizer.step()
                 total_loss += loss.item()
 
+            tolerance = 1e-4
             mean_loss = total_loss / len(dataset)
-            if mean_loss < best_loss:
+            if best_loss - mean_loss >= tolerance:
                 best_loss = mean_loss
                 epochs_no_improve = 0
                 logging.info(f"Epoch {epoch + 1}, Loss improved to {mean_loss:.6f}")

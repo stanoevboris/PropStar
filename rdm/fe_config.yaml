@@ -2,16 +2,29 @@
 denormalization:
   denormalization_woe:
     - name: 'rdm.custom_transformers.woe.WOEEncoder'
+#    - name: 'rdm.custom_transformers.conditional_resampler.ConditionalResampler'
+#      params:
+#        resampler_class_name: 'imblearn.over_sampling.SMOTE' #'imblearn.combine import SMOTEENN'
+#        imbalance_threshold: 0.1
+#        resampler_params:
+#          sampling_strategy: 'auto'
+#          k_neighbors: 3
 wordification:
   wordification_tfidf:
     - name: 'sklearn.feature_extraction.text.TfidfVectorizer'
       params:
-        max_features: 30000
+        max_features: 50
         binary: True
-  wordification_MiniLM-L6-v2:
-    - name: 'rdm.custom_transformers.sentence_transformer_encoder.SentenceTransformerEncoder'
-      params:
-        model_name: all-MiniLM-L6-v2
+#    - name: 'rdm.custom_transformers.conditional_resampler.ConditionalResampler'
+#      params:
+#        resampler_class_name: 'imblearn.over_sampling.SMOTE' #'imblearn.combine import SMOTEENN'
+#        imbalance_threshold: 0.4
+#        resampler_params:
+#          sampling_strategy: 'auto'
+#  wordification_MiniLM-L6-v2:
+#    - name: 'rdm.custom_transformers.sentence_transformer_encoder.SentenceTransformerEncoder'
+#      params:
+#        model_name: all-MiniLM-L6-v2
 #  wordification_MiniLM-L12-v2:
 #    - name: 'rdm.custom_transformers.sentence_transformer_encoder.SentenceTransformerEncoder'
 #      params:

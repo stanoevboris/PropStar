@@ -136,6 +136,22 @@ datasets:
       include_all_schemas: false
       enabled: false
 
+    - sql_type: mysql
+      database: null
+      target_schema: cs
+      target_table: target_churn
+      target_column: target_churn
+      include_all_schemas: false
+      enabled: false
+
+    - sql_type: mysql
+      database: null
+      target_schema: ftp
+      target_table: session
+      target_column: gender
+      include_all_schemas: false
+      enabled: false
+
   multiclass_classification:
     - sql_type: mysql
       database: null
@@ -151,7 +167,7 @@ datasets:
       target_table: Master
       target_column: shootCatch
       include_all_schemas: false
-      enabled: false
+      enabled: true
 
     - sql_type: mysql
       database: null
@@ -175,7 +191,7 @@ datasets:
       target_table: Examination
       target_column: Thrombosis
       include_all_schemas: false
-      enabled: true
+      enabled: false
 
     - sql_type: mssql
       database: woe

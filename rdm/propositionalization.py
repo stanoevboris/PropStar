@@ -192,7 +192,7 @@ class Denormalization(Propositionalization):
                              f"at depth {current_depth}")
                 edge_data = self.fk_graph.get_edge_data(parent_table, current_table)
                 source_column, target_column = edge_data['source_column'], edge_data['target_column']
-                if source_column not in features_data:
+                if source_column not in features_data or source_column in self.config.tables[current_table]:
                     source_column, target_column = target_column, source_column
                 features_data = features_data.merge(self.config.tables[current_table],
                                                     how='inner',

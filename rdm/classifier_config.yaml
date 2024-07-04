@@ -1,35 +1,41 @@
 classifiers:
   random_forest:
-    class: sklearn.ensemble.RandomForestClassifier
-    param_grid:
-      n_estimators: [100, 200]
-      max_depth: [1, 50]
-      min_samples_split: [2, 10]
-      min_samples_leaf: [1, 4]
+      class: sklearn.ensemble.RandomForestClassifier
+      param_grid:
+        n_estimators: [5, 15]  #50, 100 # Reduced number of trees
+        max_depth: [10, 20]  # Limited tree depth
+        min_samples_split: [2, 5]
+        min_samples_leaf: [1, 2]
+        class_weight: ['balanced']  # Use class weights
+
   extra_trees:
     class: sklearn.ensemble.ExtraTreesClassifier
     param_grid:
-      n_estimators: [100, 300]
-      max_depth: [1, 50]  # use None for unlimited depth
-      min_samples_split: [2, 10]
-      min_samples_leaf: [1, 4]
+      n_estimators: [50, 100]  # Reduced number of trees
+      max_depth: [10, 20]  # Limited tree depth
+      min_samples_split: [2, 5]
+      min_samples_leaf: [1, 2]
+      class_weight: ['balanced']  # Use class weights
+
   ada_boost:
     class: sklearn.ensemble.AdaBoostClassifier
     param_grid:
-      n_estimators: [50, 100]
-      learning_rate: [0.01, 1.0]  # use range for log-uniform prior
+      n_estimators: [50, 75]  # Reduced number of estimators
+      learning_rate: [0.01, 0.1]  # Narrowed range
+
   gradient_boost:
     class: sklearn.ensemble.GradientBoostingClassifier
     param_grid:
-      n_estimators: [100, 200]
-      learning_rate: [0.01, 0.1]
-      max_depth: [3, 5, 7]
+      n_estimators: [50, 100]  # Reduced number of trees
+      learning_rate: [0.01, 0.1]  # Narrowed range
+      max_depth: [3, 5]  # Limited tree depth
+
   xgboost:
     class: xgboost.XGBClassifier
     param_grid:
-      n_estimators: [100, 200]
-      learning_rate: [0.01, 0.1]
-      max_depth: [6, 10]
+      n_estimators: [50, 100]  # Reduced number of trees
+      learning_rate: [0.01, 0.1]  # Narrowed range
+      max_depth: [6, 10]  # Limited tree depth
       subsample: [0.8, 1.0]
       colsample_bytree: [0.8, 1.0]
   lightgbm:
@@ -48,10 +54,10 @@ classifiers:
       learning_rate: [0.01, 0.1]
       depth: [4, 8]
       l2_leaf_reg: [1, 5]
-  drm:
-    class: rdm.custom_classifiers.prop_drm.PropDRM
-    param_grid:
-      num_epochs: [5, 50]
-      learning_rate: [0.001, 0.01]
-      hidden_layer_size: [16, 64]
-      dropout: [0.1, 0.5]
+#  drm:
+#    class: rdm.custom_classifiers.prop_drm.PropDRM
+#    param_grid:
+#      num_epochs: [5, 50]
+#      learning_rate: [0.001, 0.01]
+#      hidden_layer_size: [16, 64]
+#      dropout: [0.1, 0.5]

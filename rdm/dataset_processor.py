@@ -51,7 +51,7 @@ class DatasetProcessor:
 
     def preprocess_tables(self) -> None:
         self.tables = self.clean_dataframes(tables=self.tables)
-        if self.dataset_config.target_schema == 'Sales':
+        if self.dataset_config.target_schema == 'AdventureWorks2014':
             soh = self.tables['SalesOrderHeader'].copy()
             soh['previous_order_date'] = soh.groupby('CustomerID')['OrderDate'].shift(1)
             soh['days_without_order'] = (soh['OrderDate'] - soh['previous_order_date']).dt.days.fillna(0)
@@ -75,6 +75,8 @@ class DatasetProcessor:
             soh.drop(['previous_order_date', 'days_without_order'], axis=1, inplace=True)
 
             self.tables['SalesOrderHeader'] = soh.copy()
+            self.foreign_keys.remove(['SalesOrderHeader', 'SalesPersonID', 'SalesPerson', 'BusinessEntityID'])
+            self.foreign_keys.remove(['Customer', 'StoreID', 'Store', 'BusinessEntityID'])
         elif self.dataset_config.target_schema == 'imdb_ijs':
             from rdm.imdb_movies_constants import top_250_movies, bottom_100_movies
             movies = self.tables['movies'].copy()
@@ -99,6 +101,14 @@ class DatasetProcessor:
             master = self.tables['Master'].copy()
             master = master[master['shootCatch'].isin(['L', 'R', 'B'])]
             self.tables['Master'] = master.copy()
+            self.foreign_keys.remove(['Master', 'coachID', 'Coaches', 'coachID'])
+            self.foreign_keys.remove(['AwardsCoaches', 'coachID', 'Coaches', 'coachID'])
+        elif self.dataset_config.target_schema == 'genes':
+            classification = self.tables['Classification'].copy()
+            classification = classification[~classification['Localization'].isin(['integral membrane', 'endosome',
+                                                                                  'extracellular', 'cell wall',
+                                                                                  'lipid particles'])]
+            self.tables['Classification'] = classification.copy()
 
     def process(self):
         logging.info(f"Processing dataset: {self.dataset_config.target_schema},"
@@ -114,7 +124,8 @@ class DatasetProcessor:
             self.evaluate(self.tables, self.primary_keys, self.foreign_keys)
         finally:
             end_time = time.time()
-            logging.info(f"Execution time: {end_time - start_time:.4f} seconds")
+            logging.info(
+                f"Dataset: {self.dataset_config.target_schema} - Execution time: {end_time - start_time:.4f} seconds")
 
     def propositionalize(self, method, tables, primary_keys, foreign_keys, target_table, target_attribute):
         methods = {

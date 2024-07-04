@@ -44,7 +44,7 @@ def load_yaml_config(config_file: str):
             config = yaml.safe_load(file)
         return config
     except FileNotFoundError:
-        logging.error("datasets.yaml file not found.")
+        logging.error(f"{config_file} not found.")
         return
 
 
@@ -97,7 +97,7 @@ def calculate_positive_class_percentage(train_classes, test_classes, representat
 
 def clear(stx):
     """
-    Clean the unneccesary parenthesis
+    Clean the unnecessary parenthesis
     """
 
     return stx.replace("`", "").replace("`", "")
@@ -105,7 +105,7 @@ def clear(stx):
 
 def discretize_candidates(df, types, ratio_threshold=0.20, n_bins=20):
     """
-    Continuous variables are discretized if more than 30% of the rows are unique.
+    Continuous variables are discrete if more than 30% of the rows are unique.
     """
 
     ratio_storage = {}
@@ -117,14 +117,14 @@ def discretize_candidates(df, types, ratio_threshold=0.20, n_bins=20):
                 parsed_array = np.array(
                     [np.nan if x == "NULL" else float(x) for x in to_validate])
                 parsed_array = interpolate_nans(parsed_array.reshape(-1, 1))
-                to_be_discretized = parsed_array.reshape(-1, 1)
+                to_be_discrete = parsed_array.reshape(-1, 1)
                 var = KBinsDiscretizer(
                     encode="ordinal",
-                    n_bins=n_bins).fit_transform(to_be_discretized)
+                    n_bins=n_bins).fit_transform(to_be_discrete)
                 df[enx] = var
                 if np.isnan(var).any():
-                    continue  ## discretization fail
-                df[enx] = df[enx].astype(str)  ## cast back to str.
+                    continue
+                df[enx] = df[enx].astype(str)
     return df
 
 
@@ -173,8 +173,8 @@ def is_imbalanced(labels, threshold=0.2) -> bool:
 
     Parameters:
     - labels (pd.Series): A pandas Series containing the class labels of the dataset.
-    - threshold (float): The threshold for determining imbalance. Represents the minimum proportion of the minority class.
-                         Defaults to 0.2 (20%).
+    - threshold (float): The threshold for determining imbalance.
+                            Represents the minimum proportion of the minority class. Defaults to 0.2 (20%).
 
     Returns:
     - bool: True if the dataset is imbalanced, False otherwise.

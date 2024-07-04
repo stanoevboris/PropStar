@@ -1,6 +1,6 @@
 import pandas as pd
-from sqlalchemy import create_engine, text
-from db_utils import create_connection
+from sqlalchemy import text
+from rdm.db_utils import create_connection
 
 
 def create_mssql_schema(connection, database_name: str):

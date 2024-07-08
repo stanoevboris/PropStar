@@ -53,10 +53,10 @@ def parse_arguments():
                         help="Path to the feature engineering transformers config file")
     parser.add_argument('--folds', type=int, default=10, help='Number of folds for cross-validation')
     parser.add_argument(
-        "--prop_methods", nargs='*', default=['denormalization'],
+        "--prop_methods", nargs='*', default=['denormalization', 'wordification'],
         choices=["wordification", "denormalization"])
     parser.add_argument(
-        "--problem_types", nargs='*', default=['binary_classification', 'multiclass_classification'],
+        "--problem_types", nargs='*', default=['multiclass_classification'],
         choices=["binary_classification", "multiclass_classification"])
     return parser.parse_args()
 

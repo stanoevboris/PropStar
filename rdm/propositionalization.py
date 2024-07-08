@@ -1,20 +1,14 @@
 import itertools
-from abc import ABC, abstractmethod
+from abc import ABC
 import networkx as nx
 import pandas as pd
-from tqdm import tqdm
 import logging
 import queue
 
 from rdm.utils import OrderedDictList
-
-# TODO: implement feature engineering and feature selection
-# TODO: include flexibility for custom steps... this can be included maybe in new class
-
 from typing import Dict, Optional, List
 
 
-# Base configuration class to simplify initializers
 class PropConfig:
     def __init__(self, tables: Dict, foreign_keys: Dict, primary_keys: Optional[Dict] = None,
                  target_table: Optional[str] = None, target_attribute: Optional[str] = None, max_depth: int = 2):
@@ -33,13 +27,15 @@ class PropConfig:
         self.max_depth = max_depth
 
 
-class Propositionalization(ABC):
-    def __init__(self, config: PropConfig):
+class Denormalization(ABC):
+    def __init__(self, config: PropConfig, keep_target_table_pk: bool = False):
         self.config = config
         self.initialize_logging()
         self.fk_graph = self.create_fk_graph(self.config.foreign_keys)
         self.feature_vectors = OrderedDictList()
         self.total_witems = set()
+        self.keep_target_table_pk = keep_target_table_pk
+        self.parsed_tables = None
 
     @staticmethod
     def initialize_logging():
@@ -94,102 +90,20 @@ class Propositionalization(ABC):
             # logging.info(f"Future tables from {current_table}: {future_tables}")
         return to_traverse
 
-    @abstractmethod
-    def traverse_and_fetch_related_data(self):
-        pass
-
-    @abstractmethod
-    def run(self):
-        pass
-
-
-class Wordfication(Propositionalization):
-    def __init__(self, config: PropConfig):
-        super().__init__(config)
-
-        self.docs = []
-
-    def propositionalize_core_table(self):
-        logging.info("Propositionalization of core table...")
-        excluded_columns = self.config.core_foreign_keys.union({self.config.target_attribute})
-
-        columns = self.config.core_table.columns.difference(excluded_columns)
-        for row in tqdm(self.config.core_table.itertuples(index=True), total=self.config.core_table.shape[0]):
-            for column in columns:
-                value = getattr(row, column)
-                witem = f"{self.config.target_table}-{column}-{str(value)}"
-                self.feature_vectors[row.Index].append(witem)
-                self.total_witems.add(witem)
-
-    def traverse_and_fetch_related_data(self):
-        logging.info("Traversing other tables...")
-        traversal_map = dict(nx.bfs_successors(self.fk_graph, self.config.target_table))
-
-        for row in tqdm(self.config.core_table.itertuples(index=True),
-                        total=self.config.core_table.shape[0]):
-            parsed_tables = {self.config.target_table}  # to avoid future circular join to the target table
-            to_traverse = self.initialize_queue(traversal_map=traversal_map)
-            while not to_traverse.empty():
-                parent_table, current_depth, current_table = to_traverse.get()
-
-                if current_table not in parsed_tables:
-                    parsed_tables.add(current_table)
-                    # logging.info(f"Currently applying wordification over table: {current_table} "
-                    #              f"at depth {current_depth}")
-                    edge_data = self.fk_graph.get_edge_data(parent_table, current_table)
-                    source_column, target_column = edge_data['source_column'], edge_data['target_column']
-                    if source_column not in self.config.core_table:
-                        source_column, target_column = target_column, source_column
-                    next_table_df = self.config.tables[current_table]
-                    column_value_to_be_searched = getattr(row, source_column)
-                    table_row = next_table_df[next_table_df[target_column] == column_value_to_be_searched]
-                    table_row.reset_index(drop=True, inplace=True)
-
-                    if table_row.empty:
-                        continue
-
-                    excluded_columns = self.config.all_foreign_keys.union({self.config.target_attribute})
-                    for column_name in table_row:
-                        value = [value for value in table_row[column_name]][0]
-                        if column_name not in excluded_columns:
-                            witem = f"{current_table}-{column_name}-{value}"
-                            self.total_witems.add(witem)
-                            self.feature_vectors[row.Index].append(witem)
-
-                    to_traverse = self.fill_queue(current_table=current_table,
-                                                  current_depth=current_depth,
-                                                  traversal_map=traversal_map,
-                                                  to_traverse=to_traverse)
-
-    def features2docs(self):
-        self.docs = [' '.join(value) for value in self.feature_vectors.values()]
-
-    def run(self) -> [List, pd.Series]:
-        self.propositionalize_core_table()
-        self.traverse_and_fetch_related_data()
-        self.features2docs()
-        return self.docs, self.config.target_classes
-
-
-class Denormalization(Propositionalization):
-    def __init__(self, config: PropConfig):
-        super().__init__(config)
-
     def traverse_and_fetch_related_data(self) -> pd.DataFrame:
         logging.info("Traversing other tables...")
         traversal_map = dict(nx.bfs_successors(self.fk_graph, self.config.target_table))
         features_data = self.config.core_table.copy()
 
-        parsed_tables = {self.config.target_table}  # to avoid future circular join to the target table
+        self.parsed_tables = {self.config.target_table}  # to avoid future circular join to the target table
         to_traverse = self.initialize_queue(traversal_map=traversal_map)
 
         while not to_traverse.empty():
             parent_table, current_depth, current_table = to_traverse.get()
 
-            if current_table not in parsed_tables:
-                parsed_tables.add(current_table)
-                logging.info(f"Currently applying denormalization over table: {current_table} "
-                             f"at depth {current_depth}")
+            if current_table not in self.parsed_tables:
+                self.parsed_tables.add(current_table)
+                logging.info(f"Currently applying denormalization over table: {current_table} at depth {current_depth}")
                 edge_data = self.fk_graph.get_edge_data(parent_table, current_table)
                 source_column, target_column = edge_data['source_column'], edge_data['target_column']
                 if source_column not in features_data or source_column in self.config.tables[current_table]:
@@ -205,7 +119,8 @@ class Denormalization(Propositionalization):
                 excluded_keys = all_keys - self.config.core_foreign_keys
 
                 # Append '__y' suffix and filter by presence in features_data.columns
-                columns_to_drop = {f"{key}__{current_table}" for key in excluded_keys if f"{key}__{current_table}" in features_data.columns}
+                columns_to_drop = {f"{key}__{current_table}" for key in excluded_keys if
+                                   f"{key}__{current_table}" in features_data.columns}
 
                 features_data.drop(list(columns_to_drop), axis=1, inplace=True)
 
@@ -220,8 +135,14 @@ class Denormalization(Propositionalization):
         """
         Method that will drop all columns related to primary key or foreign key
         """
-        available_keys = {key for key in self.config.all_foreign_keys.union(self.config.primary_keys.values())
-                          if key in features.columns}
+        if self.keep_target_table_pk:
+            available_keys = {key for key in self.config.all_foreign_keys.union(self.config.primary_keys.values())
+                              if
+                              key in features.columns and key not in self.config.primary_keys[self.config.target_table]}
+        else:
+            available_keys = {
+                key for key in self.config.all_foreign_keys.union(self.config.primary_keys.values())
+                if key in features.columns}
 
         # cols_to_drop = [col for col in features.columns if col in available_keys and col.endswith('__y')]
         cols_to_drop = [col for col in available_keys if col in features.columns]
@@ -239,3 +160,63 @@ class Denormalization(Propositionalization):
 
         self.prepare_labels(features_data)
         return features_data, self.config.target_classes
+
+
+class Wordification(Denormalization):
+    def __init__(self, config: PropConfig, keep_target_table_pk: bool = True):
+        super().__init__(config, keep_target_table_pk)
+        self.docs = []
+        self.table_metadata = None
+
+    def get_data_lineage(self, features: pd.DataFrame) -> Dict[str, List[str]]:
+        table_metadata = {}
+        excluded_keys = self.config.all_foreign_keys.union(self.config.primary_keys.values())
+
+        for table_name, table in self.config.tables.items():
+            if table_name in self.parsed_tables:
+                table_metadata[table_name] = [
+                    col for col in table.columns
+                    if (col in features.columns or f"{col}__{table_name}" in features.columns)
+                       and col not in excluded_keys and col not in self.config.target_attribute
+                ]
+
+        return table_metadata
+
+    def create_document(self, group: pd.DataFrame) -> [str, str]:
+        document_parts = []
+        doc_label = group[self.config.target_attribute].values[0]
+        group.drop(self.config.target_attribute, axis=1, inplace=True)
+        document_parts.extend(self._process_target_table(group))
+        document_parts.extend(self._process_related_tables(group))
+        return " ".join(document_parts), doc_label
+
+    def _process_target_table(self, group: pd.DataFrame) -> List[str]:
+        target_table_name = self.config.target_table
+        customer_info = group.iloc[0][self.table_metadata[target_table_name]].to_dict()
+        return [f"{target_table_name}_{key}_{value}" for key, value in customer_info.items()]
+
+    def _process_related_tables(self, group: pd.DataFrame) -> List[str]:
+        document_parts = []
+        for _, row in group.iterrows():
+            for table_name, columns in self.table_metadata.items():
+                if table_name != self.config.target_table:
+                    table_info = row[columns].to_dict()
+                    document_parts.extend([f"{table_name}_{key}_{value}" for key, value in table_info.items()])
+        return document_parts
+
+    def run(self) -> [List[str], pd.Series]:
+        features_data = self.traverse_and_fetch_related_data()
+        features_data = self.clear_columns(features_data)
+        self.table_metadata = self.get_data_lineage(features_data)
+
+        grouped_data = features_data.groupby(self.config.primary_keys[self.config.target_table])
+
+        documented_data = []
+        documents = []
+        labels = []
+
+        for customer_id, group in grouped_data:
+            current_doc, current_label = self.create_document(group)
+            documents.append(current_doc)
+            labels.append(current_label)
+        return documents, labels

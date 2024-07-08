@@ -8,7 +8,7 @@ import pandas as pd
 
 from rdm.db_utils import get_database
 from rdm.ml_exeriments import MLExperiment
-from rdm.propositionalization import PropConfig, Wordfication, Denormalization
+from rdm.propositionalization import PropConfig, Wordification, Denormalization
 
 from sklearn.preprocessing import LabelEncoder
 
@@ -109,6 +109,10 @@ class DatasetProcessor:
                                                                                   'extracellular', 'cell wall',
                                                                                   'lipid particles'])]
             self.tables['Classification'] = classification.copy()
+        elif self.dataset_config.target_schema == 'medical':
+            examination = self.tables['Examination'].copy()
+            examination = examination[~examination['Thrombosis'].isin(3)]
+            self.tables['Examination'] = examination.copy()
 
     def process(self):
         logging.info(f"Processing dataset: {self.dataset_config.target_schema},"
@@ -129,7 +133,7 @@ class DatasetProcessor:
 
     def propositionalize(self, method, tables, primary_keys, foreign_keys, target_table, target_attribute):
         methods = {
-            "wordification": Wordfication,
+            "wordification": Wordification,
             "denormalization": Denormalization
         }
         prop_config = PropConfig(tables=tables, primary_keys=primary_keys, foreign_keys=foreign_keys,

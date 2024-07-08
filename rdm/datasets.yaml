@@ -167,7 +167,7 @@ datasets:
       target_table: Master
       target_column: shootCatch
       include_all_schemas: false
-      enabled: true
+      enabled: false
 
     - sql_type: mysql
       database: null
@@ -191,7 +191,7 @@ datasets:
       target_table: Examination
       target_column: Thrombosis
       include_all_schemas: false
-      enabled: false
+      enabled: true
 
     - sql_type: mssql
       database: woe

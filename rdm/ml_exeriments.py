@@ -1,17 +1,15 @@
 from typing import Dict, Callable
 import pandas as pd
 from sklearn.model_selection import StratifiedKFold
-from sklearn.pipeline import Pipeline
 from skopt import BayesSearchCV
 from skopt.space import Real, Integer, Categorical
 from imblearn.pipeline import Pipeline as ImbPipeline
-
+import matplotlib.pyplot as plt
 
 from rdm.constants import scoring_metrics
 from rdm.utils import load_yaml_config
 
 
-# TODO: include the cross-validation folds in this class
 class MLExperiment:
     def __init__(self, feature_config_path: str, classifier_config_path: str, prop_method: str, problem_type: str):
         self.prop_method = prop_method
@@ -108,6 +106,39 @@ class MLExperiment:
             classifiers_summaries.append(current_summary_sorted)
 
         return pd.concat(classifiers_summaries, ignore_index=True)
+
+    def extract_feature_importance(self):
+        feature_importance = {}
+        for key, bayes_search in self.results.items():
+            classifier_name, pipeline_name = key
+            model = bayes_search.best_estimator_.named_steps['classifier']
+
+            if hasattr(model, 'feature_importances_'):
+                importance = model.feature_importances_
+            elif hasattr(model, 'coef_'):
+                importance = model.coef_[0]
+            else:
+                continue
+
+            feature_names = [f'Feature {i}' for i in range(len(importance))]
+            importance_df = pd.DataFrame({'Feature': feature_names, 'Importance': importance})
+            importance_df = importance_df.sort_values(by='Importance', ascending=False)
+            feature_importance[(classifier_name, pipeline_name)] = importance_df
+
+        return feature_importance
+
+    def plot_feature_importance(self, feature_importance):
+        for key, importance_df in feature_importance.items():
+            classifier_name, pipeline_name = key
+            plt.figure(figsize=(10, 8))
+            plt.barh(importance_df['Feature'], importance_df['Importance'], color='skyblue')
+            plt.xlabel('Importance')
+            plt.title(f'Feature Importance for {classifier_name} with {pipeline_name}')
+            plt.gca().invert_yaxis()
+            plt.tight_layout()
+            plt.savefig(f'feature_importance_{classifier_name}_{pipeline_name}.png')
+            plt.close()
+
 # Usage:
 # exp = MLExperiment('feature_engineering.yaml', 'classifiers.yaml')
 # experiment_results = exp.run_experiments()

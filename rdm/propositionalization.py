@@ -109,7 +109,7 @@ class Denormalization(ABC):
                 if source_column not in features_data or source_column in self.config.tables[current_table]:
                     source_column, target_column = target_column, source_column
                 features_data = features_data.merge(self.config.tables[current_table],
-                                                    how='inner',
+                                                    how='left',
                                                     left_on=source_column,
                                                     right_on=target_column,
                                                     suffixes=(None, f'__{current_table}'))

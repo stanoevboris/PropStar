@@ -111,8 +111,9 @@ class DatasetProcessor:
             self.tables['Classification'] = classification.copy()
         elif self.dataset_config.target_schema == 'medical':
             examination = self.tables['Examination'].copy()
-            examination = examination[~examination['Thrombosis'].isin(3)]
+            examination = examination[~examination['Thrombosis'].isin([3])]
             self.tables['Examination'] = examination.copy()
+            self.primary_keys['Examination'] = "ID"
 
     def process(self):
         logging.info(f"Processing dataset: {self.dataset_config.target_schema},"
@@ -157,11 +158,17 @@ class DatasetProcessor:
             labels = self.encode_labels(labels)
             exp = MLExperiment(feature_config_path=self.args.fe_config,
                                classifier_config_path=self.args.classifier_config, prop_method=method,
-                               problem_type=self.problem_type)
-            exp.run_experiments(features, labels)
-            results = exp.summarize_results(dataset=self.dataset_config.target_schema)
+                               problem_type=self.problem_type,
+                               dataset=self.dataset_config.target_schema)
+            testing_results_dfs = [df for df in exp.run_experiments(features, labels)]
+            testing_results = pd.concat(testing_results_dfs, ignore_index=True)
+            training_results = exp.summarize_train_results()
             # Check if the file exists
-            file_exists = os.path.isfile(self.args.results_file)
+            training_results_file = f"{self.args.results_file}_training_results.csv"
+            testing_results_file = f"{self.args.results_file}_testing_results.csv"
+            train_results_file_exists = os.path.isfile(training_results_file)
+            test_results_file_exists = os.path.isfile(testing_results_file)
 
             # Append to the file if it exists, write headers only if the file does not exist
-            results.to_csv(self.args.results_file, mode='a', index=False, header=not file_exists)
+            training_results.to_csv(training_results_file, mode='a', index=False, header=not train_results_file_exists)
+            testing_results.to_csv(testing_results_file, mode='a', index=False, header=not test_results_file_exists)

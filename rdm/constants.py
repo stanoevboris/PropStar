@@ -25,7 +25,6 @@ training_scoring_metrics = {
         # 'roc_auc_ovr': make_scorer(roc_auc_score, multi_class='ovr', needs_proba=True),
         # 'average_precision': make_scorer(average_precision_score, needs_proba=True),
         'cohen_kappa': make_scorer(cohen_kappa_score),
-        'mcc': make_scorer(matthews_corrcoef),
         'hamming_loss': make_scorer(hamming_loss, greater_is_better=False),
     }
 }
@@ -49,8 +48,8 @@ testing_scoring_metrics = {
             'recall_macro': (recall_score, {'average': 'macro'}),
             'recall_micro': (recall_score, {'average': 'micro'}),
             'recall_weighted': (recall_score, {'average': 'weighted'}),
-            'roc_auc_ovr': (roc_auc_score, {'multi_class': 'ovr', 'needs_proba': True}),
+            # 'roc_auc_ovr': (roc_auc_score, {'multi_class': 'ovr', 'needs_proba': True}),
             'cohen_kappa': (cohen_kappa_score, {}),
-            'hamming_loss': (hamming_loss, {'greater_is_better': False}),
+            'hamming_loss': (hamming_loss, {}),
         }
 }

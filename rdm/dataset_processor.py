@@ -107,7 +107,8 @@ class DatasetProcessor:
             classification = self.tables['Classification'].copy()
             classification = classification[~classification['Localization'].isin(['integral membrane', 'endosome',
                                                                                   'extracellular', 'cell wall',
-                                                                                  'lipid particles'])]
+                                                                                  'lipid particles', 'peroxisome',
+                                                                                  'vacuole', 'transport vesicles'])]
             self.tables['Classification'] = classification.copy()
         elif self.dataset_config.target_schema == 'medical':
             examination = self.tables['Examination'].copy()

@@ -22,7 +22,7 @@ scoring_metrics = {
         'recall_macro': make_scorer(recall_score, average='macro'),
         'recall_micro': make_scorer(recall_score, average='micro'),
         'recall_weighted': make_scorer(recall_score, average='weighted'),
-        'roc_auc_ovr': make_scorer(roc_auc_score, multi_class='ovr', needs_proba=True),
+        # 'roc_auc_ovr': make_scorer(roc_auc_score, multi_class='ovr', needs_proba=True),
         # 'average_precision': make_scorer(average_precision_score, needs_proba=True),
         'cohen_kappa': make_scorer(cohen_kappa_score),
         'mcc': make_scorer(matthews_corrcoef),

@@ -7,7 +7,7 @@ training_scoring_metrics = {
         'f1': make_scorer(f1_score),
         'precision': make_scorer(precision_score, zero_division=0),
         'recall': make_scorer(recall_score),
-        'roc_auc': make_scorer(roc_auc_score, needs_threshold=True),
+        'roc_auc': make_scorer(roc_auc_score, response_method=("decision_function", "predict_proba")),
         'mcc': make_scorer(matthews_corrcoef),
         'average_precision': make_scorer(average_precision_score)
     },

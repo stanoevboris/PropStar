@@ -21,7 +21,7 @@ wordification:
   wordification_tfidf_smote:
     - name: 'sklearn.feature_extraction.text.TfidfVectorizer'
       params:
-        max_features: 10000
+        max_features: 5000
         binary: True
     - name: 'rdm.custom_transformers.conditional_resampler.ConditionalResampler'
       params:
@@ -33,7 +33,7 @@ wordification:
   wordification_tfidf_ros:
     - name: 'sklearn.feature_extraction.text.TfidfVectorizer'
       params:
-        max_features: 10000
+        max_features: 5000
         binary: True
     - name: 'rdm.custom_transformers.conditional_resampler.ConditionalResampler'
       params:

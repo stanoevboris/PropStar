@@ -67,7 +67,7 @@ class MLExperiment:
                 search_spaces[param_name] = Categorical(values)
 
         stratified_cv = StratifiedKFold(n_splits=10)
-        bayes_search = BayesSearchCV(pipeline, search_spaces=search_spaces, n_iter=1, cv=stratified_cv,
+        bayes_search = BayesSearchCV(pipeline, search_spaces=search_spaces, n_iter=5, cv=stratified_cv,
                                      scoring=scoring, refit=refit_metric, verbose=10, n_jobs=1)
 
         return bayes_search

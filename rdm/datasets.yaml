@@ -86,7 +86,7 @@ datasets:
       target_table: trains
       target_column: direction
       include_all_schemas: false
-      enabled: true
+      enabled: false
 
     - sql_type: mysql
       database: null

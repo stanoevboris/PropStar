@@ -14,7 +14,7 @@ datasets:
       target_table: target_table
       target_column: activity
       include_all_schemas: false
-      enabled: true
+      enabled: false
 
     - sql_type: mssql
       database: woe
@@ -38,7 +38,7 @@ datasets:
       target_table: target
       target_column: class
       include_all_schemas: false
-      enabled: true
+      enabled: false
 
     - sql_type: mssql
       database: woe
@@ -54,7 +54,7 @@ datasets:
       target_table: mushroom
       target_column: class
       include_all_schemas: false
-      enabled: true
+      enabled: false
 
     - sql_type: mssql
       database: woe
@@ -62,7 +62,7 @@ datasets:
       target_table: target
       target_column: Class
       include_all_schemas: false
-      enabled: true
+      enabled: false
 
     - sql_type: mssql
       database: AdventureWorks2022
@@ -126,7 +126,7 @@ datasets:
       target_table: molecule
       target_column: mutagenic
       include_all_schemas: false
-      enabled: true
+      enabled: false
 
     - sql_type: mysql
       database: null
@@ -134,7 +134,7 @@ datasets:
       target_table: loan
       target_column: status
       include_all_schemas: false
-      enabled: true
+      enabled: false
 
     - sql_type: mysql
       database: null
@@ -151,6 +151,73 @@ datasets:
       target_column: gender
       include_all_schemas: false
       enabled: false
+
+    - sql_type: mysql
+      database: null
+      target_schema: PTE
+      target_table: pte_active
+      target_column: is_active
+      include_all_schemas: false
+      enabled: false
+
+    - sql_type: mysql
+      database: null
+      target_schema: NCAA
+      target_table: target
+      target_column: team_id1_wins
+      include_all_schemas: false
+      enabled: false
+
+    - sql_type: mysql
+      database: null
+      target_schema: UTube
+      target_table: utube_states
+      target_column: class
+      include_all_schemas: false
+      enabled: false
+
+    - sql_type: mysql
+      database: null
+      target_schema: MuskLarge #/ MuskSmall
+      target_table: molecule
+      target_column: class
+      include_all_schemas: false
+      enabled: false
+
+    - sql_type: mysql
+      database: null
+      target_schema: DCG
+      target_table: sentences
+      target_column: class
+      include_all_schemas: false
+      enabled: false
+
+    - sql_type: mysql
+      database: null
+      target_schema: Pima
+      target_table: pima
+      target_column: arg2
+      include_all_schemas: false
+      enabled: false
+
+    - sql_type: mysql
+      database: null
+      target_schema: Carcinogenesis
+      target_table: canc
+      target_column: class
+      include_all_schemas: false
+      enabled: false
+
+    - sql_type: mysql
+      database: null
+      target_schema: Toxicology
+      target_table: molecule
+      target_column: label
+      include_all_schemas: false
+      enabled: false
+
+
+
 
   multiclass_classification:
     - sql_type: mysql

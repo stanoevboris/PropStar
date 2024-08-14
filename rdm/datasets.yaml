@@ -126,7 +126,7 @@ datasets:
       target_table: molecule
       target_column: mutagenic
       include_all_schemas: false
-      enabled: false
+      enabled: false # finished
 
     - sql_type: mysql
       database: null
@@ -134,7 +134,7 @@ datasets:
       target_table: loan
       target_column: status
       include_all_schemas: false
-      enabled: false
+      enabled: false #finished
 
     - sql_type: mysql
       database: null
@@ -154,7 +154,7 @@ datasets:
 
     - sql_type: mysql
       database: null
-      target_schema: PTE
+      target_schema: PTE # very large dataset
       target_table: pte_active
       target_column: is_active
       include_all_schemas: false
@@ -162,7 +162,7 @@ datasets:
 
     - sql_type: mysql
       database: null
-      target_schema: NCAA
+      target_schema: NCAA # very large dataset
       target_table: target
       target_column: team_id1_wins
       include_all_schemas: false
@@ -170,7 +170,7 @@ datasets:
 
     - sql_type: mysql
       database: null
-      target_schema: UTube
+      target_schema: UTube # excluded this data set since this the least populated label has 4 records < n_folds 10
       target_table: utube_states
       target_column: class
       include_all_schemas: false
@@ -182,7 +182,15 @@ datasets:
       target_table: molecule
       target_column: class
       include_all_schemas: false
-      enabled: false
+      enabled: true # this is okay dataset
+
+    - sql_type: mysql
+      database: null
+      target_schema: MuskSmall
+      target_table: molecule
+      target_column: class
+      include_all_schemas: false
+      enabled: true # this is okay dataset
 
     - sql_type: mysql
       database: null
@@ -190,7 +198,7 @@ datasets:
       target_table: sentences
       target_column: class
       include_all_schemas: false
-      enabled: false
+      enabled: true # this is okay dataset
 
     - sql_type: mysql
       database: null
@@ -198,15 +206,7 @@ datasets:
       target_table: pima
       target_column: arg2
       include_all_schemas: false
-      enabled: false
-
-    - sql_type: mysql
-      database: null
-      target_schema: Carcinogenesis
-      target_table: canc
-      target_column: class
-      include_all_schemas: false
-      enabled: false
+      enabled: false # no words for wordification we will exclude this dataset
 
     - sql_type: mysql
       database: null
@@ -214,9 +214,15 @@ datasets:
       target_table: molecule
       target_column: label
       include_all_schemas: false
-      enabled: false
+      enabled: true # this dataset is okay
 
-
+    - sql_type: mysql
+      database: null
+      target_schema: Carcinogenesis
+      target_table: canc
+      target_column: class
+      include_all_schemas: false
+      enabled: true #big dataset ~50M records
 
 
   multiclass_classification:
@@ -265,5 +271,30 @@ datasets:
       target_schema: room_occupancy_multiclass
       target_table: original_table
       target_column: Room_Occupancy_Count
+      include_all_schemas: false
+      enabled: false
+
+    - sql_type: mysql
+      database: null
+      target_schema: university
+      target_table: student
+      target_column: intelligence
+      include_all_schemas: false
+      enabled: false
+
+
+    - sql_type: mysql
+      database: null
+      target_schema: Chess
+      target_table: game
+      target_column: game_result
+      include_all_schemas: false
+      enabled: false
+
+    - sql_type: mysql
+      database: null
+      target_schema: Atherosclerosis
+      target_table: Death
+      target_column: PRICUMR
       include_all_schemas: false
       enabled: false

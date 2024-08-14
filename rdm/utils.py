@@ -9,26 +9,12 @@ from imblearn.combine import SMOTEENN
 from imblearn.over_sampling import SMOTE
 from imblearn.under_sampling import EditedNearestNeighbours
 from sklearn.preprocessing import KBinsDiscretizer
-from deprecated import constants
 
 PROJECT_DIR = os.path.dirname(__file__)
 
 logging.basicConfig(format='%(asctime)s - %(message)s',
                     datefmt='%d-%b-%y %H:%M:%S')
 logging.getLogger().setLevel(logging.INFO)
-
-
-def get_all_columns():
-    # Initialize a set to collect all unique keys
-    all_columns = set(constants.COMMON_PARAMS.keys())
-
-    # Add keys from each classifier's parameters in CLASSIFIER_GRID
-    for classifier_params in constants.CLASSIFIER_GRID.values():
-        all_columns.update(classifier_params.keys())
-
-    # Create a new dictionary with None as default values for each key
-    all_columns = {key: None for key in all_columns}
-    return all_columns
 
 
 def setup_directory(directory_path):

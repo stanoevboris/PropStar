@@ -1,8 +1,8 @@
+from logger_config import logger
 import itertools
 from abc import ABC
 import networkx as nx
 import pandas as pd
-import logging
 import queue
 
 from rdm.utils import OrderedDictList
@@ -30,19 +30,11 @@ class PropConfig:
 class Denormalization(ABC):
     def __init__(self, config: PropConfig, keep_target_table_pk: bool = False):
         self.config = config
-        self.initialize_logging()
         self.fk_graph = self.create_fk_graph(self.config.foreign_keys)
         self.feature_vectors = OrderedDictList()
         self.total_witems = set()
         self.keep_target_table_pk = keep_target_table_pk
         self.parsed_tables = None
-
-    @staticmethod
-    def initialize_logging():
-        logging.basicConfig(
-            format='[%(asctime)s] p%(process)s {%(pathname)s:%(funcName)s} %(levelname)s - %(message)s',
-            datefmt='%m-%d %H:%M:%S',
-            level=logging.INFO)
 
     def create_fk_graph(self, foreign_keys):
         graph = nx.Graph()
@@ -59,14 +51,14 @@ class Denormalization(ABC):
         return graph
 
     def print_graph(self):
-        logging.info("Graph Representation of Foreign Key Relationships:")
-        logging.info("\nNodes (Tables):")
+        logger.info("Graph Representation of Foreign Key Relationships:")
+        logger.info("\nNodes (Tables):")
         for node in self.fk_graph.nodes():
             print(node)
 
-        logging.info("\nEdges (Foreign Key Relationships):")
+        logger.info("\nEdges (Foreign Key Relationships):")
         for t1, t2, attributes in self.fk_graph.edges(data=True):
-            logging.info(
+            logger.info(
                 f"From {t1} to {t2} - Source Column: {attributes['source_column']}, "
                 f"Target Column: {attributes['target_column']}")
 
@@ -91,7 +83,7 @@ class Denormalization(ABC):
         return to_traverse
 
     def traverse_and_fetch_related_data(self) -> pd.DataFrame:
-        logging.info("Traversing other tables...")
+        logger.info("Traversing other tables...")
         traversal_map = dict(nx.bfs_successors(self.fk_graph, self.config.target_table))
         features_data = self.config.core_table.copy()
 
@@ -103,7 +95,7 @@ class Denormalization(ABC):
 
             if current_table not in self.parsed_tables:
                 self.parsed_tables.add(current_table)
-                logging.info(f"Currently applying denormalization over table: {current_table} at depth {current_depth}")
+                logger.info(f"Currently applying denormalization over table: {current_table} at depth {current_depth}")
                 edge_data = self.fk_graph.get_edge_data(parent_table, current_table)
                 source_column, target_column = edge_data['source_column'], edge_data['target_column']
                 if source_column not in features_data or source_column in self.config.tables[current_table]:
@@ -176,8 +168,8 @@ class Wordification(Denormalization):
             if table_name in self.parsed_tables:
                 table_metadata[table_name] = [
                     col for col in table.columns
-                    if (col in features.columns or f"{col}__{table_name}" in features.columns)
-                       and col not in excluded_keys and col not in self.config.target_attribute
+                    if (col in features.columns or f"{col}__{table_name}" in features.columns) and
+                       col not in excluded_keys and col not in self.config.target_attribute
                 ]
 
         return table_metadata

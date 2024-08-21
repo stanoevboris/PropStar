@@ -1,23 +1,17 @@
-import logging
+import warnings
 import argparse
 import time
-
 from rdm.dataset_processor import DatasetProcessor
 from rdm.utils import load_yaml_config
+from logger_config import logger
+
+warnings.filterwarnings('ignore')
 
 
 class Benchmark:
     def __init__(self, args):
         self.args = args
         self.config_file = 'rdm/datasets.yaml'
-        self.initialize_logging()
-
-    @staticmethod
-    def initialize_logging():
-        logging.basicConfig(
-            format='[%(asctime)s] p%(process)s {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s',
-            datefmt='%m-%d %H:%M:%S',
-            level=logging.INFO)
 
     def load_datasets(self, problem_type: str):
         # Load datasets configuration from YAML or similar
@@ -68,7 +62,7 @@ def main():
     benchmark.run()
 
     end_time = time.time()
-    logging.info(f"Experiments total execution time: {end_time - start_time:.4f} seconds")
+    logger.info(f"Experiments total execution time: {end_time - start_time:.4f} seconds")
 
 
 if __name__ == "__main__":

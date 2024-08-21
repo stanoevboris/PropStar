@@ -1,4 +1,4 @@
-import logging
+from logger_config import logger
 from typing import Optional
 
 from sqlalchemy import engine
@@ -25,15 +25,6 @@ class Database(ABC):
         self.database = database
         self.target_schema = target_schema
         self.include_all_schemas = include_all_schemas
-
-        self.initialize_logging()
-
-    @staticmethod
-    def initialize_logging():
-        logging.basicConfig(
-            format='[%(asctime)s] p%(process)s {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s',
-            datefmt='%m-%d %H:%M:%S',
-            level=logging.INFO)
 
     @abstractmethod
     def get_connection_url(self):
@@ -62,8 +53,8 @@ class Database(ABC):
                 for table in tables:
                     tables_dict[table] = self.get_table(schema=schema, table_name=table, connection=connection)
 
-            logging.info(f"Total tables read: {len(tables_dict)}")
-            logging.info(f"Tables read: {list(tables_dict.keys())}")
+            logger.info(f"Total tables read: {len(tables_dict)}")
+            logger.info(f"Tables read: {list(tables_dict.keys())}")
 
             pks = pd.read_sql(text(self.get_primary_keys()), connection)
             fks = pd.read_sql(text(self.get_foreign_keys()), connection)

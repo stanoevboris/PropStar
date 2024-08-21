@@ -1,4 +1,4 @@
-from typing import Dict, Callable
+from logger_config import logger
 import pandas as pd
 from sklearn.model_selection import StratifiedKFold, train_test_split
 from skopt import BayesSearchCV
@@ -7,6 +7,7 @@ from imblearn.pipeline import Pipeline as ImbPipeline
 import matplotlib.pyplot as plt
 
 from rdm.constants import training_scoring_metrics, testing_scoring_metrics
+from rdm.custom_transformers.timing_wrapper import TimingWrapper
 from rdm.utils import load_yaml_config
 
 
@@ -44,7 +45,8 @@ class MLExperiment:
 
             transformer_params = step.get('params', {})
             transformer = transformer_class(**transformer_params)
-
+            if class_name != 'ConditionalResampler':
+                transformer = TimingWrapper(transformer, name=class_name)
             steps.append((class_name.lower(), transformer))
 
         class_path, class_name = classifier_info['class'].rsplit('.', 1)
@@ -67,7 +69,7 @@ class MLExperiment:
                 search_spaces[param_name] = Categorical(values)
 
         stratified_cv = StratifiedKFold(n_splits=10)
-        bayes_search = BayesSearchCV(pipeline, search_spaces=search_spaces, n_iter=5, cv=stratified_cv,
+        bayes_search = BayesSearchCV(pipeline, search_spaces=search_spaces, n_iter=1, cv=stratified_cv,
                                      scoring=scoring, refit=refit_metric, verbose=10, n_jobs=1, random_state=42)
 
         return bayes_search
@@ -77,7 +79,7 @@ class MLExperiment:
 
         for pipeline_name, feature_steps in self.feature_config[self.prop_method].items():
             for classifier_name, classifier_info in self.classifier_config['classifiers'].items():
-                print(f"Creating and evaluating pipeline for {pipeline_name} with {classifier_name}")
+                logger.info(f"Creating and evaluating pipeline for {pipeline_name} with {classifier_name}")
                 pipeline = self.create_pipeline(feature_steps, classifier_info, self.training_scoring_metrics,
                                                 self.refit_metric)
                 pipeline.fit(X_train, y_train)
@@ -86,6 +88,7 @@ class MLExperiment:
                 yield self.evaluate_on_test_set(pipeline, X_test, y_test, classifier_name, pipeline_name)
 
     def evaluate_on_test_set(self, pipeline, X_test, y_test, classifier_name, pipeline_name) -> pd.DataFrame:
+        logger.info(f"STARTED: Evaluating test set for {self.dataset} with {pipeline_name}")
         val_predictions = pipeline.predict(X_test)
         val_proba = pipeline.predict_proba(X_test) if hasattr(pipeline, 'predict_proba') else None
 
@@ -102,15 +105,16 @@ class MLExperiment:
                 score = metric_func(y_test, val_proba[:, 1], **kwargs)
             else:
                 score = metric_func(y_test, val_predictions, **kwargs)
-            df[metric_name] = score
+            df[metric_name] = round(score, 3)
             print(f'Validation {metric_name} for {classifier_name} with {pipeline_name}: {score}')
-
+        logger.info(f"COMPLETED: Evaluating test set for {self.dataset} with {pipeline_name}")
         return pd.DataFrame.from_dict(df, orient='index').T
 
     def summarize_train_results(self) -> pd.DataFrame:
         """
         Summarize the results of a GridSearchCV object when refit is set to False.
         """
+        logger.info(f"STARTED: Summarizing train set for {self.dataset}")
         classifiers_summaries = []
         for key, bayes_search in self.train_results.items():
             classifier_name, pipeline_name = key
@@ -133,6 +137,7 @@ class MLExperiment:
             current_summary_sorted = current_summary.sort_values(by=first_rank_col)
             classifiers_summaries.append(current_summary_sorted)
 
+        logger.info(f"COMPLETED: Summarizing train set for {self.dataset}")
         return pd.concat(classifiers_summaries, ignore_index=True)
 
     def extract_feature_importance(self):

@@ -1,11 +1,8 @@
 import importlib
-import logging
+from logger_config import logger
 from collections import Counter
 from sklearn.base import BaseEstimator
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
 
 class ConditionalResampler(BaseEstimator):
     def __init__(self, resampler_class_name='imblearn.over_sampling.SMOTE', imbalance_threshold=0.1,
@@ -59,4 +56,3 @@ class ConditionalResampler(BaseEstimator):
 
     def _fit_resample(self, X, y):
         return self.fit_resample(X, y) if self.need_resample else (X, y)
-

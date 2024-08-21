@@ -110,6 +110,11 @@ class DatasetProcessor:
                                                                                   'lipid particles', 'peroxisome',
                                                                                   'vacuole', 'transport vesicles'])]
             self.tables['Classification'] = classification.copy()
+            # drop Localization from Genes tables since it causes data leak
+            genes = self.tables.get('Genes').copy()
+            genes.drop(['Localization'], axis=1, inplace=True)
+            self.tables['Genes'] = genes.copy()
+
         elif self.dataset_config.target_schema == 'medical':
             examination = self.tables['Examination'].copy()
             examination = examination[~examination['Thrombosis'].isin([3])]

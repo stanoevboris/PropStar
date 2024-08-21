@@ -102,10 +102,10 @@ class MLExperiment:
 
         for metric_name, (metric_func, kwargs) in self.testing_scoring_metrics.items():
             if metric_name in ['roc_auc', 'average_precision'] and val_proba is not None:
-                score = metric_func(y_test, val_proba[:, 1], **kwargs)
+                score = round(metric_func(y_test, val_proba[:, 1], **kwargs), 3)
             else:
-                score = metric_func(y_test, val_predictions, **kwargs)
-            df[metric_name] = round(score, 3)
+                score = round(metric_func(y_test, val_predictions, **kwargs), 3)
+            df[metric_name] = score
             print(f'Validation {metric_name} for {classifier_name} with {pipeline_name}: {score}')
         logger.info(f"COMPLETED: Evaluating test set for {self.dataset} with {pipeline_name}")
         return pd.DataFrame.from_dict(df, orient='index').T

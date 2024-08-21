@@ -12,7 +12,7 @@ from rdm.utils import load_yaml_config
 
 
 class MLExperiment:
-    def __init__(self, feature_config_path: str,classifier_config_path: str, prop_method: str, problem_type: str,
+    def __init__(self, feature_config_path: str, classifier_config_path: str, prop_method: str, problem_type: str,
                  dataset: str):
         self.training_scoring_metrics = None
         self.prop_method = prop_method
@@ -160,7 +160,8 @@ class MLExperiment:
 
         return feature_importance
 
-    def plot_feature_importance(self, feature_importance):
+    @staticmethod
+    def plot_feature_importance(feature_importance):
         for key, importance_df in feature_importance.items():
             classifier_name, pipeline_name = key
             plt.figure(figsize=(10, 8))

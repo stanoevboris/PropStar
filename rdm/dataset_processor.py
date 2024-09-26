@@ -1,8 +1,7 @@
-import logging
 import os
 import time
 from typing import Dict
-
+from logger_config import logger
 import numpy as np
 import pandas as pd
 
@@ -29,17 +28,9 @@ class DatasetProcessor:
         self.dataset_config = DatasetConfig(dataset_info)
         self.args = args
         self.problem_type = problem_type
-        self.initialize_logging()
         self.tables = None
         self.primary_keys = None
         self.foreign_keys = None
-
-    @staticmethod
-    def initialize_logging():
-        logging.basicConfig(
-            format='[%(asctime)s] p%(process)s {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s',
-            datefmt='%m-%d %H:%M:%S',
-            level=logging.INFO)
 
     @staticmethod
     def clean_dataframes(tables: dict):
@@ -110,6 +101,11 @@ class DatasetProcessor:
                                                                                   'lipid particles', 'peroxisome',
                                                                                   'vacuole', 'transport vesicles'])]
             self.tables['Classification'] = classification.copy()
+            # drop Localization from Genes tables since it causes data leak
+            genes = self.tables.get('Genes').copy()
+            genes.drop(['Localization'], axis=1, inplace=True)
+            self.tables['Genes'] = genes.copy()
+
         elif self.dataset_config.target_schema == 'medical':
             examination = self.tables['Examination'].copy()
             examination = examination[~examination['Thrombosis'].isin([3])]
@@ -117,7 +113,7 @@ class DatasetProcessor:
             self.primary_keys['Examination'] = "ID"
 
     def process(self):
-        logging.info(f"Processing dataset: {self.dataset_config.target_schema},"
+        logger.info(f"Processing dataset: {self.dataset_config.target_schema},"
                      f" Table: {self.dataset_config.target_table}")
         start_time = time.time()
         try:
@@ -130,7 +126,7 @@ class DatasetProcessor:
             self.evaluate(self.tables, self.primary_keys, self.foreign_keys)
         finally:
             end_time = time.time()
-            logging.info(
+            logger.info(
                 f"Dataset: {self.dataset_config.target_schema} - Execution time: {end_time - start_time:.4f} seconds")
 
     def propositionalize(self, method, tables, primary_keys, foreign_keys, target_table, target_attribute):

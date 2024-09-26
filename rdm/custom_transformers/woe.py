@@ -1,4 +1,4 @@
-import logging
+from logger_config import logger
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -112,7 +112,7 @@ class WOEEncoder(BaseEstimator, TransformerMixin):
         self : encoder
             Returns the instance itself.
         """
-        logging.info("Starting fit method.")
+        logger.info("Starting fit method.")
         y = pd.Series(y)
         unique_classes = y.unique()
         if len(unique_classes) < 2:
@@ -125,13 +125,13 @@ class WOEEncoder(BaseEstimator, TransformerMixin):
         cols = X.columns
 
         for feature in tqdm(cols, desc="Processing features"):
-            logging.info(f"Processing feature: {feature}")
+            logger.info(f"Processing feature: {feature}")
             if is_datetime64_any_dtype(X[feature]):
-                logging.info(f"Skipping datetime feature: {feature}")
+                logger.info(f"Skipping datetime feature: {feature}")
                 continue
 
             for cls in unique_classes:
-                logging.info(f"Processing class: {cls}")
+                logger.info(f"Processing class: {cls}")
                 y_bin = (y == cls).astype(int)
                 d = self._bin_data(X[feature], y_bin)
                 d['% of Events'] = np.maximum(d['Events'], self.regularization) / d['Events'].sum()
@@ -141,16 +141,16 @@ class WOEEncoder(BaseEstimator, TransformerMixin):
                 d['IV'] = (d['% of Events'] - d['% of Non-Events']) * d['WoE']
 
                 if X[feature].nunique() == len(X[feature]):
-                    logging.info(f"Feature {feature} contains only unique values. Assigning WoE and IV value of 0.")
+                    logger.info(f"Feature {feature} contains only unique values. Assigning WoE and IV value of 0.")
                     d['WoE'] = 0
                     d['IV'] = 0
 
                 d.insert(loc=0, column='Feature', value=feature)
                 d.insert(loc=1, column='Class', value=cls)
 
-                # Logging the IV for each feature and class
+                # logger.the IV for each feature and class
                 iv_value = d['IV'].sum()
-                logging.info(f"Information value of {feature} for class {cls} is {iv_value:.6f}")
+                logger.info(f"Information value of {feature} for class {cls} is {iv_value:.6f}")
 
                 temp = pd.DataFrame({"Feature": [feature], "Class": [cls], "IV": [iv_value]},
                                     columns=["Feature", "Class", "IV"])
@@ -162,7 +162,7 @@ class WOEEncoder(BaseEstimator, TransformerMixin):
 
         if self.drop_invariant:
             self.drop_invariant_features()
-        logging.info("Fit method completed.")
+        logger.info("Fit method completed.")
         return self
 
     def transform(self, X):
@@ -189,7 +189,7 @@ class WOEEncoder(BaseEstimator, TransformerMixin):
         transformed_features = []
 
         for feature in tqdm(self.woe['Feature'].unique(), desc="Transforming features"):
-            logging.info(f"Transforming feature: {feature}")
+            logger.info(f"Transforming feature: {feature}")
             for cls in self.woe['Class'].unique():
                 woe_dict = \
                     self.woe[(self.woe['Feature'] == feature) & (self.woe['Class'] == cls)][
@@ -198,7 +198,7 @@ class WOEEncoder(BaseEstimator, TransformerMixin):
                 feature_name = f"{feature}_class_{cls}"
 
                 if is_datetime64_any_dtype(X_transformed[feature]):
-                    logging.warning(f"Skipping transformation for datetime variable: {feature}")
+                    logger.warning(f"Skipping transformation for datetime variable: {feature}")
                     continue
 
                 if (X_transformed[feature].dtype.kind in 'bifc') and (len(np.unique(X[feature])) > 10):
@@ -217,7 +217,7 @@ class WOEEncoder(BaseEstimator, TransformerMixin):
 
                 transformed_features.append(pd.DataFrame({feature_name: transformed_feature}))
 
-        logging.info("Transform method completed.")
+        logger.info("Transform method completed.")
         return pd.concat(transformed_features, axis=1).fillna(0).to_numpy()
 
     def fit_transform(self, X, y=None, **kwargs):
@@ -244,7 +244,7 @@ class WOEEncoder(BaseEstimator, TransformerMixin):
         Keep features with IV values in the range of 0.02 to 0.5, indicating weak to strong predictive power.
         """
         if self.iv.empty:
-            logging.warning("IV DataFrame is empty. Please ensure the fit method has been called before filtering.")
+            logger.warning("IV DataFrame is empty. Please ensure the fit method has been called before filtering.")
             return
 
         original_feature_count = self.iv.shape[0]
@@ -253,7 +253,7 @@ class WOEEncoder(BaseEstimator, TransformerMixin):
         self.woe = self.woe[self.woe['Feature'].isin(filtered_iv['Feature'])]
 
         dropped_features_count = original_feature_count - filtered_iv.shape[0]
-        logging.info(f"Filtered {dropped_features_count} out of {original_feature_count} features based on IV values. "
+        logger.info(f"Filtered {dropped_features_count} out of {original_feature_count} features based on IV values. "
                      f"Retained features with IV in the range 0.02 to 0.5.")
 
     def drop_invariant_features(self):
@@ -266,6 +266,6 @@ class WOEEncoder(BaseEstimator, TransformerMixin):
         if invariant_features:
             self.woe = self.woe[~self.woe['Feature'].isin(invariant_features)].reset_index(drop=True)
             self.iv = self.iv[~self.iv['Feature'].isin(invariant_features)].reset_index(drop=True)
-            logging.info(f"Dropped invariant features: {invariant_features}")
+            logger.info(f"Dropped invariant features: {invariant_features}")
         else:
-            logging.info("No invariant features found to drop.")
+            logger.info("No invariant features found to drop.")

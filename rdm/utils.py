@@ -1,9 +1,8 @@
 import os
 import yaml
 from collections import OrderedDict, Counter
-
+from logger_config import logger
 import numpy as np
-import logging
 
 from imblearn.combine import SMOTEENN
 from imblearn.over_sampling import SMOTE
@@ -12,16 +11,11 @@ from sklearn.preprocessing import KBinsDiscretizer
 
 PROJECT_DIR = os.path.dirname(__file__)
 
-logging.basicConfig(format='%(asctime)s - %(message)s',
-                    datefmt='%d-%b-%y %H:%M:%S')
-logging.getLogger().setLevel(logging.INFO)
-
-
 def setup_directory(directory_path):
     """Ensure the directory exists, creating it if necessary."""
     if not os.path.exists(directory_path):
         os.makedirs(directory_path)
-        logging.info(f"Directory {directory_path} created.")
+        logger.info(f"Directory {directory_path} created.")
 
 
 def load_yaml_config(config_file: str):
@@ -30,7 +24,7 @@ def load_yaml_config(config_file: str):
             config = yaml.safe_load(file)
         return config
     except FileNotFoundError:
-        logging.error(f"{config_file} not found.")
+        logger.error(f"{config_file} not found.")
         return
 
 
@@ -43,9 +37,9 @@ def log_dataset_info(train_features, test_features):
 
     total_records = num_train_records + num_test_records
 
-    logging.info(f"Dataset number of records: {total_records}")
-    logging.info(f"Train set number of features: {num_train_features}")
-    logging.info(f"Test set number of features: {num_test_features}")
+    logger.info(f"Dataset number of records: {total_records}")
+    logger.info(f"Train set number of features: {num_train_features}")
+    logger.info(f"Test set number of features: {num_test_features}")
 
 
 def calculate_positive_class_percentage(train_classes, test_classes, representation_type):
@@ -192,7 +186,7 @@ def balance_dataset_with_smote(X_train, y_train):
     # Apply SMOTE
     X_resampled, y_resampled = smote_enn.fit_resample(X_train, y_train)
 
-    logging.info(f"Original dataset shape {np.bincount(y_train)}")
-    logging.info(f"Resampled dataset shape {np.bincount(y_resampled)}")
+    logger.info(f"Original dataset shape {np.bincount(y_train)}")
+    logger.info(f"Resampled dataset shape {np.bincount(y_resampled)}")
 
     return X_resampled, y_resampled

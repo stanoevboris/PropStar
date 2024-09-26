@@ -232,47 +232,7 @@ datasets:
       target_table: Classification
       target_column: Localization
       include_all_schemas: false
-      enabled: false
-
-    - sql_type: mysql
-      database: null
-      target_schema: Hockey
-      target_table: Master
-      target_column: shootCatch
-      include_all_schemas: false
-      enabled: false
-
-    - sql_type: mysql
-      database: null
-      target_schema: PremierLeague
-      target_table: Matches
-      target_column: ResultOfTeamHome
-      include_all_schemas: false
-      enabled: false
-
-    - sql_type: mysql
-      database: null
-      target_schema: financial
-      target_table: loan
-      target_column: status
-      include_all_schemas: false
-      enabled: false
-
-    - sql_type: mysql
-      database: null
-      target_schema: medical
-      target_table: Examination
-      target_column: Thrombosis
-      include_all_schemas: false
-      enabled: false
-
-    - sql_type: mssql
-      database: woe
-      target_schema: room_occupancy_multiclass
-      target_table: original_table
-      target_column: Room_Occupancy_Count
-      include_all_schemas: false
-      enabled: false
+      enabled: true
 
     - sql_type: mysql
       database: null
@@ -280,8 +240,7 @@ datasets:
       target_table: student
       target_column: intelligence
       include_all_schemas: false
-      enabled: false
-
+      enabled: true
 
     - sql_type: mysql
       database: null
@@ -289,7 +248,7 @@ datasets:
       target_table: game
       target_column: game_result
       include_all_schemas: false
-      enabled: false
+      enabled: true
 
     - sql_type: mysql
       database: null
@@ -297,4 +256,44 @@ datasets:
       target_table: Death
       target_column: PRICUMR
       include_all_schemas: false
-      enabled: false
+      enabled: true
+
+    - sql_type: mysql
+      database: null
+      target_schema: medical
+      target_table: Examination
+      target_column: Thrombosis
+      include_all_schemas: false
+      enabled: true
+
+    - sql_type: mysql
+      database: null
+      target_schema: PremierLeague
+      target_table: Matches
+      target_column: ResultOfTeamHome
+      include_all_schemas: false
+      enabled: true
+
+    - sql_type: mysql
+      database: null
+      target_schema: financial
+      target_table: loan
+      target_column: status
+      include_all_schemas: false
+      enabled: true
+
+    - sql_type: mssql
+      database: woe
+      target_schema: room_occupancy_multiclass
+      target_table: original_table
+      target_column: Room_Occupancy_Count
+      include_all_schemas: false
+      enabled: true
+
+    - sql_type: mysql
+      database: null
+      target_schema: Hockey
+      target_table: Master
+      target_column: shootCatch
+      include_all_schemas: false
+      enabled: true
